@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class MetroCacheManager implements CacheManager,
+public class SpringCacheManager implements CacheManager,
         InitializingBean, DisposableBean {
 
-    private ConcurrentMap<String, MetroCache> cacheMap;
+    private ConcurrentMap<String, SpringCache> cacheMap;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -23,9 +23,9 @@ public class MetroCacheManager implements CacheManager,
 
     @Override
     public Cache getCache(String s) {
-        MetroCache cache = cacheMap.get(s);
+        SpringCache cache = cacheMap.get(s);
         if (cache == null) {
-            cache = cacheMap.computeIfAbsent(s, x -> new MetroCache(s));
+            cache = cacheMap.computeIfAbsent(s, x -> new SpringCache(s));
         }
         return cache;
     }
@@ -37,7 +37,7 @@ public class MetroCacheManager implements CacheManager,
 
     @Override
     public void destroy() throws Exception {
-        Iterator<Map.Entry<String, MetroCache>> iter = cacheMap.entrySet().iterator();
+        Iterator<Map.Entry<String, SpringCache>> iter = cacheMap.entrySet().iterator();
         cacheMap = null;
         while (iter.hasNext()) {
             iter.next().getValue().clear();

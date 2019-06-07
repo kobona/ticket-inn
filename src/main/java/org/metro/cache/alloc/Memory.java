@@ -31,10 +31,10 @@ public final class Memory extends Unsafe.Accessor implements Closeable {
     }
 
     public Memory(String name, long length) throws IOException {
-        this(name, length, true);
+        this(name, length, true, null);
     }
 
-    public Memory(String name, long length, boolean autoDel) throws IOException {
+    public Memory(String name, long length, boolean autoDel, Allocator.SpaceFactory factory) throws IOException {
 
         File file = new File(name);
         if (autoDel) file.deleteOnExit();
@@ -44,7 +44,7 @@ public final class Memory extends Unsafe.Accessor implements Closeable {
 
         try {
             this.address = (long) map0.invoke(this.file.getChannel(), 1, 0L, this.length);
-            this.allocator = new Allocator(name, address, this.length);
+            this.allocator = new Allocator(name, address, this.length, factory);
         } catch (Exception e) {
             throw new Error(e);
         }
@@ -71,4 +71,7 @@ public final class Memory extends Unsafe.Accessor implements Closeable {
         allocator.free(space);
     }
 
+    public Reporter reporter() {
+        return allocator.report();
+    }
 }

@@ -1,7 +1,6 @@
 package org.metro.cache.alloc;
 
 import org.metro.cache.alloc.Detector.*;
-import org.meteorite.cache.alloc.util.*;
 import org.metro.cache.alloc.util.*;
 import org.metro.cache.alloc.util.Stack.*;
 
@@ -38,9 +37,9 @@ public class Allocator {
     /**
      * Resource Exposure
      * */
-    public final class Space extends Unsafe.Accessor {
+    public static class Space extends Unsafe.Accessor {
         private final Ref ref; // todo: there is a cycle reference
-        private Space(long address, int size, Detector detector) {
+        protected Space(long address, int size, Detector detector) {
             this.ref = detector.attach(this, address, size);
         }
         public final long length() {
@@ -49,25 +48,36 @@ public class Allocator {
         protected final long address() {
             return ref.address;
         }
-        public final Allocator allocator() { return Allocator.this; }
+        public final boolean free() {
+            return ref.free();
+        }
+    }
+
+    /**
+     * Space Factory
+     * */
+    public interface SpaceFactory {
+        Space build(long address, int size, Detector detector);
     }
 
     private final long address, size;
     private final Trap trap = new Trap(this::collectFragment, 100);
     private final Detector detector;
     private final Reporter reporter;
+    private final SpaceFactory factory;
 
     final LastRemain lastRemain = new LastRemain();
     final SmallBin smallBin = new SmallBin();
     final TreeBin treeBin = new TreeBin();
 
-    public Allocator(String name, long address, long size) {
+    public Allocator(String name, long address, long size, SpaceFactory factory) {
         if (address < 0 || size <= 0) {
             throw new IllegalArgumentException("address < 0 || size <= 0");
         }
         lastRemain.hold(this.address = address, this.size = size);
         reporter = new Reporter(name, this);
         detector = new Detector(this);
+        this.factory = factory;
     }
 
     int active() { return trap.active(); }
@@ -102,19 +112,30 @@ public class Allocator {
         Chunk chunk = search(size);
         trap.quit();
 
-        return (chunk == null)? null:
-                new Space(chunk.address, (int)chunk.size, detector);
+        Space space = null;
+        if (chunk != null) {
+            space = factory == null ?
+                    new Space(chunk.address, (int)chunk.size, detector):
+                    factory.build(chunk.address, (int)chunk.size, detector);
+        }
+        return space;
     }
 
     public void free(Space space) {
         if (space == null)
             throw new NullPointerException("space");
-        if (space.allocator() != this)
-            throw new IllegalArgumentException("space.allocator != this");
-        if (space.ref.free())
-            throw new IllegalStateException("space is free");
-        free(space.ref);
-        reporter.free(space.ref.size);
+        if (! space.ref.free()) {
+            boolean freed = false;
+            synchronized (space) {
+                if (! space.ref.free()) {
+                    free(space.ref);
+                    freed = true;
+                }
+            }
+            if (freed) {
+                reporter.free(space.ref.size);
+            }
+        }
     }
 
     void free(Ref ref) {

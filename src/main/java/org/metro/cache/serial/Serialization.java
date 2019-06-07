@@ -14,10 +14,10 @@ import java.util.concurrent.ConcurrentMap;
 public class Serialization {
 
     private static final ThreadLocal<SpaceOutput> OUTPUT =
-            ThreadLocal.withInitial(()->new SpaceOutput());
+            ThreadLocal.withInitial(SpaceOutput::new);
 
     private static final ThreadLocal<SpaceInput> INPUT =
-            ThreadLocal.withInitial(()->new SpaceInput());
+            ThreadLocal.withInitial(SpaceInput::new);
 
     private static final ConcurrentMap<Class, Schema>
         SCHEMA = new ConcurrentHashMap<>();
@@ -31,8 +31,8 @@ public class Serialization {
         return schema;
     }
 
-    public static <T> Space write(T message, Class<T> clazz, Memory memory) throws Exception {
-        Schema<T> schema = SCHEMA.get(clazz);
+    public static <T> Space write(T message, Memory memory) throws Exception {
+        Schema<T> schema = parseClazz((Class<T>) message.getClass());
         SpaceOutput output = OUTPUT.get();
         LinkedBuffer buffer = output.buffer();
         int length = ProtostuffIOUtil.writeTo(buffer, message, schema);
@@ -45,9 +45,14 @@ public class Serialization {
     }
 
     public static <T> T read(Space space, Class<T> clazz) throws Exception {
-        Schema<T> schema = SCHEMA.get(clazz);
+        Schema<T> schema = parseClazz(clazz);
         T message = schema.newMessage();
-        schema.mergeFrom(INPUT.get().wrap(space).input(), message);
+        synchronized (space) {
+            if (space.free()) {
+                return null;
+            }
+            schema.mergeFrom(INPUT.get().wrap(space).input(), message);
+        }
         return message;
     }
 
