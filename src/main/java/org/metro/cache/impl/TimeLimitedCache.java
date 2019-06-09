@@ -18,7 +18,7 @@ import java.util.function.Function;
 /**
  * <p> Created by pengshuolin on 2019/6/5
  */
-public abstract class TimeLimitedCache<K,V extends TimeLimitedCache.TTLSpace> extends ConcurrentHashMap<K,V> {
+public abstract class TimeLimitedCache<K,V extends Allocator.Space> extends ConcurrentHashMap<K,V> {
 
     public static class TTLSpace extends Allocator.Space {
 
@@ -56,7 +56,7 @@ public abstract class TimeLimitedCache<K,V extends TimeLimitedCache.TTLSpace> ex
             this.function = function;
         }
         public V apply(K k) {
-            return (result = function.apply(k));
+            return initTTL(result = function.apply(k));
         }
         public void evict(K k, V v) {
             if (result != null && result != v) {
@@ -72,7 +72,7 @@ public abstract class TimeLimitedCache<K,V extends TimeLimitedCache.TTLSpace> ex
             this.function = function;
         }
         public V apply(K k, V v) {
-            return (out = function.apply(k, (in = v)));
+            return initTTL(out = function.apply(k, (in = v)));
         }
         public void evict(K k, V v) {
             if (in != null && in != v) {
@@ -96,27 +96,37 @@ public abstract class TimeLimitedCache<K,V extends TimeLimitedCache.TTLSpace> ex
         this.expiryAfterWrite = Math.max(0, expiryAfterWrite);
     }
 
+    private <T extends Allocator.Space> T initTTL(T space) {
+        if (space instanceof TTLSpace) {
+            TTLSpace s = (TTLSpace) space;
+            if (s.TTL == 0) {
+                strategy.updateTTL(s, s.WRITE);
+            }
+        }
+        return space;
+    }
+
     @Override
     public V get(Object key) {
-        V v = super.get(key);
+        TTLSpace v = (TTLSpace) super.get(key);
         if (v != null) {
             long now = System.currentTimeMillis();
             if ((expiryAfterWrite > 0 || expiryAfterAccess > 0) &&
                 v.isExpired(System.currentTimeMillis(), expiryAfterWrite, expiryAfterAccess)) {
                 if (super.remove(key) == v) {
-                    onEvict((K) key, v);
+                    onEvict((K) key, (V) v);
                 }
                 return null;
             }
             v.updateAccess(now);
             strategy.updateTTL(v, now);
         }
-        return v;
+        return (V) v;
     }
 
     @Override
     public V put(K key, V value) {
-        V v = super.put(key, value);
+        V v = super.put(key, initTTL(value));
         if (v != null) {
             onEvict(key, v);
         }
@@ -260,12 +270,12 @@ public abstract class TimeLimitedCache<K,V extends TimeLimitedCache.TTLSpace> ex
     private class EntryExaminer implements Comparator<Entry<K,V>> {
         final long now = System.currentTimeMillis();
         public int compare(Entry<K, V> o1, Entry<K, V> o2) {
-            long w1 = strategy.weightTTL(o1.getValue(), now);
-            long w2 = strategy.weightTTL(o2.getValue(), now);
+            long w1 = strategy.weightTTL((TTLSpace) o1.getValue(), now);
+            long w2 = strategy.weightTTL((TTLSpace) o2.getValue(), now);
             return - Long.compare(w1, w2); // reverse
         }
         public boolean isExpired(Entry<K, V> o) {
-            return o.getValue().isExpired(now, expiryAfterWrite, expiryAfterAccess);
+            return ((TTLSpace) o.getValue()).isExpired(now, expiryAfterWrite, expiryAfterAccess);
         }
         public void doEvict(Entry<K, V> o) {
             if (TimeLimitedCache.super.remove(o.getKey()) == o.getValue()) {

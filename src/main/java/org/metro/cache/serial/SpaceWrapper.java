@@ -2,18 +2,29 @@ package org.metro.cache.serial;
 
 import org.metro.cache.alloc.Detector;
 import org.metro.cache.alloc.Memory;
+import org.metro.cache.impl.SelfEvictCache;
 import org.metro.cache.impl.TimeLimitedCache;
 import org.springframework.cache.Cache;
 
-public class SpaceWrapper extends TimeLimitedCache.TTLSpace implements Cache.ValueWrapper {
+@SuppressWarnings("unchecked")
+public class SpaceWrapper<T> extends TimeLimitedCache.TTLSpace implements Cache.ValueWrapper {
 
-    private Class clazz;
+    protected Class<T> clazz;
+    protected int padding;
 
     public SpaceWrapper(long address, int size, Detector detector) {
         super(address, size, detector);
     }
 
-    public Object get() {
+    public Class<T> clazz() {
+        return clazz;
+    }
+
+    public long size() {
+        return length() - padding;
+    }
+
+    public T get() {
         try {
             return Serialization.read(this, clazz);
         } catch (Exception e) {
@@ -21,15 +32,9 @@ public class SpaceWrapper extends TimeLimitedCache.TTLSpace implements Cache.Val
         }
     }
 
-    public Class clazz() {
-        return clazz;
-    }
-
-    public static SpaceWrapper put(Object value, Memory mem) {
+    public static <T> SpaceWrapper<T> put(Object value, SelfEvictCache cache) {
         try {
-            SpaceWrapper warp = (SpaceWrapper) Serialization.write(value, mem);
-            warp.clazz = value.getClass();
-            return warp;
+            return  (SpaceWrapper) Serialization.write(value, cache.mem());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

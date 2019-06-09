@@ -1,44 +1,14 @@
 package org.metro.cache.impl;
 
+import org.metro.cache.alloc.Allocator;
 import org.metro.cache.alloc.Memory;
 
-import java.util.Map;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
  * <p> Created by pengshuolin on 2019/6/6
  */
-public class SelfEvictCache<K,V extends TimeLimitedCache.TTLSpace> extends TimeLimitedCache<K,V> {
-
-    private static final Map<String, SelfEvictCache> cacheRegistry =
-            new ConcurrentHashMap<>();
-
-    private static final ScheduledExecutorService cacheCleaner =
-            Executors.newScheduledThreadPool(1, new ThreadFactory() {
-                public Thread newThread(Runnable r) {
-                    Thread t = new Thread(r);
-                    t.setName("CacheCleaner");
-                    return t;
-                }
-            });
-
-    static {
-        cacheCleaner.scheduleWithFixedDelay(new Runnable() {
-            public void run() {
-                for (SelfEvictCache cache : cacheRegistry.values()) {
-                    cache.evictExpired();
-                }
-            }
-        }, 1, 1, TimeUnit.SECONDS);
-    }
-
-    static void registerCache(SelfEvictCache cache) {
-        SelfEvictCache c = cacheRegistry.putIfAbsent(cache.name, cache);
-        if (c != cache) {
-            throw new IllegalArgumentException("Found namesake cache");
-        }
-    }
+public class SelfEvictCache<K,V extends Allocator.Space> extends TimeLimitedCache<K,V> {
 
     private final String name;
     private final Memory memory;
@@ -84,6 +54,7 @@ public class SelfEvictCache<K,V extends TimeLimitedCache.TTLSpace> extends TimeL
         @Override
         public String toString() {
             new StringBuilder("CacheStats[").
+                    append("name:").append(name).append(", ").
                     append("hit:").append(hitCount).append(", ").
                     append("miss:").append(missCount).append(", ").
                     append("request:").append(requestCount()).append(",").
@@ -92,6 +63,14 @@ public class SelfEvictCache<K,V extends TimeLimitedCache.TTLSpace> extends TimeL
                     append("eviction:").append(evictionCount).append("]");
             return super.toString();
         }
+    }
+
+    public Memory mem() {
+        return memory;
+    }
+
+    public String name() {
+        return name;
     }
 
     public CacheStats stats() {

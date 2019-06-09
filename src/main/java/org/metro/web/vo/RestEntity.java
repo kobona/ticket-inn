@@ -1,4 +1,4 @@
-package org.metro.vo;
+package org.metro.web.vo;
 
 import lombok.Data;
 

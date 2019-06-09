@@ -1,9 +1,18 @@
 package org.metro.cache;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import org.apache.commons.lang3.StringUtils;
+import org.metro.cache.impl.CacheBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.io.IOException;
 
 /**
  * <p> Created by pengshuolin on 2019/6/5
@@ -11,6 +20,48 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableCaching
 public class CacheConfig {
+
+    private final static Logger log = LoggerFactory.getLogger(ShiroCacheManager.class);
+
+    static CacheBuilder parseJsonConfig(String json) {
+        try {
+            String name = null;
+            String strategy = "FIFO";
+            Integer maximumSize = null;
+            Integer expiryAfterWrite = null;
+            Integer expiryAfterAccess = null;
+
+            JsonParser parser = new JsonFactory().createParser(json);
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                switch (StringUtils.defaultString(parser.currentName())) {
+                    case "name": name = parser.getValueAsString(); break;
+                    case "strategy": strategy = parser.getValueAsString("FIFO"); break;
+                    case "maximumSize": maximumSize = parser.getValueAsInt(0); break;
+                    case "expiryAfterWrite": expiryAfterWrite = parser.getValueAsInt(0); break;
+                    case "expiryAfterAccess": expiryAfterAccess = parser.getValueAsInt(0); break;
+                }
+            }
+
+            CacheBuilder builder = new CacheBuilder(name);
+            switch (strategy.toUpperCase()) {
+                case "FIFO": builder.applyFIFO(); break;
+                case "LRU": builder.applyLRU(); break;
+                case "LFU": builder.applyLFU(); break;
+                default: throw new IllegalArgumentException(strategy);
+            }
+            if (maximumSize != null)
+                builder.maximumSize(maximumSize);
+            if (expiryAfterWrite != null)
+                builder.expiryAfterWrite(expiryAfterWrite);
+            if (expiryAfterAccess != null)
+                builder.expiryAfterAccess(expiryAfterAccess);
+
+            return builder;
+        } catch (Exception e) {
+            log.error("parse cache config fail {}", json, e);
+            throw new RuntimeException(e);
+        }
+    }
 
     @Bean
     public CacheManager cacheManager() {

@@ -1,6 +1,7 @@
 package org.metro.cache.serial;
 
 
+import io.protostuff.ProtobufIOUtil;
 import org.metro.cache.alloc.Allocator.Space;
 import org.metro.cache.alloc.Memory;
 import io.protostuff.LinkedBuffer;
@@ -31,20 +32,23 @@ public class Serialization {
         return schema;
     }
 
-    public static <T> Space write(T message, Memory memory) throws Exception {
-        Schema<T> schema = parseClazz((Class<T>) message.getClass());
+    public static <T> SpaceWrapper write(T message, Memory memory) throws Exception {
+        Class<T> clazz = (Class<T>) message.getClass();
+        Schema<T> schema = parseClazz(clazz);
         SpaceOutput output = OUTPUT.get();
         LinkedBuffer buffer = output.buffer();
-        int length = ProtostuffIOUtil.writeTo(buffer, message, schema);
-        Space space = memory.acquire(length);
+        int length = ProtobufIOUtil.writeTo(buffer, message, schema);
+        SpaceWrapper space = (SpaceWrapper) memory.acquire(length);
         if (space != null) {
             LinkedBuffer.writeTo(output.wrap(space), buffer);
+            space.clazz = clazz;
+            space.padding = (int) space.length() - length;
         }
         buffer.clear();
         return space;
     }
 
-    public static <T> T read(Space space, Class<T> clazz) throws Exception {
+    public static <T> T read(SpaceWrapper<T> space, Class<T> clazz) throws Exception {
         Schema<T> schema = parseClazz(clazz);
         T message = schema.newMessage();
         synchronized (space) {

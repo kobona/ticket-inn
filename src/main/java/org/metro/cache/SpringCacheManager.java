@@ -22,12 +22,9 @@ public class SpringCacheManager implements CacheManager,
     }
 
     @Override
-    public Cache getCache(String s) {
-        SpringCache cache = cacheMap.get(s);
-        if (cache == null) {
-            cache = cacheMap.computeIfAbsent(s, x -> new SpringCache(s));
-        }
-        return cache;
+    public Cache getCache(String config) {
+        return cacheMap.computeIfAbsent(config, (k)->
+                CacheConfig.parseJsonConfig(config).build(SpringCache::new));
     }
 
     @Override
@@ -40,8 +37,9 @@ public class SpringCacheManager implements CacheManager,
         Iterator<Map.Entry<String, SpringCache>> iter = cacheMap.entrySet().iterator();
         cacheMap = null;
         while (iter.hasNext()) {
-            iter.next().getValue().clear();
+            SpringCache cache = iter.next().getValue();
             iter.remove();
+            cache.clear();;
         }
     }
 }

@@ -7,6 +7,7 @@ import java.util.function.Function;
 /**
  * SkipList
  * */
+@SuppressWarnings("unchecked")
 public class Tree {
 
     private static final int MAX_LV = 5;

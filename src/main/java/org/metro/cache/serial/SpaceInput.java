@@ -10,14 +10,14 @@ import java.io.InputStream;
 public class SpaceInput extends InputStream {
 
     private final CodedInput input;
-    private Allocator.Space space;
+    private SpaceWrapper space;
     private int position;
 
     public SpaceInput() {
         input = new CodedInput(this, false);
     }
 
-    public SpaceInput wrap(Allocator.Space space) {
+    public SpaceInput wrap(SpaceWrapper space) {
         input.resetSizeCounter();
         this.space = space;
         this.position = 0;
@@ -44,7 +44,7 @@ public class SpaceInput extends InputStream {
         }
 
         int pos = position;
-        int end = (int) Math.min(pos + len, space.length());
+        int end = (int) Math.min(pos + len, space.size());
         if (end == pos) {
             return -1;
         }
