@@ -3,6 +3,6 @@ CREATE TABLE account (
     username varchar(50) NOT NULL,
     password varchar(50) NOT NULL,
     salt varchar(50) NOT NULL,
-    add_time integer NOT NULL,
-    mod_time integer NOT NULL
+    add_date integer NOT NULL,
+    mod_date integer NOT NULL
 );

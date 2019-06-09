@@ -11,7 +11,7 @@ import org.metro.cache.impl.TimeLimitedCache.EvictStrategy;
 public class CacheBuilder {
 
     private static final Pattern naming =
-            Pattern.compile("^([A-Za-z0-9_]+):([.\\w]+)$");
+            Pattern.compile("^([A-Za-z0-9_]+):([-.\\w]+)$");
 
     private final String memoryScope, cacheName;
 

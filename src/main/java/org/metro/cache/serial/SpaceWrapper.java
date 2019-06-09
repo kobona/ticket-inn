@@ -1,7 +1,6 @@
 package org.metro.cache.serial;
 
 import org.metro.cache.alloc.Detector;
-import org.metro.cache.alloc.Memory;
 import org.metro.cache.impl.SelfEvictCache;
 import org.metro.cache.impl.TimeLimitedCache;
 import org.springframework.cache.Cache;
