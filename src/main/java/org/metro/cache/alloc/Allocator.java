@@ -6,6 +6,8 @@ import org.metro.cache.alloc.util.Stack.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Allocator with dlmalloc algorithm
@@ -35,6 +37,55 @@ public class Allocator {
     }
 
     /**
+     * Fast Memory Keeper
+     * */
+    static class LastRemain {
+
+        final AtomicReference<Chunk> holder = new AtomicReference<>();
+
+        long size() {
+            Chunk chunk = holder.get();
+            return (chunk == null)? 0: chunk.size;
+        }
+
+        Chunk hold(long address, long size) {
+            if (size == 0) return null;
+            Chunk next = new Chunk(address, size);
+            while (true) {
+                Chunk prev = holder.get();
+                if (prev == null || prev.size < next.size) {
+                    if (holder.compareAndSet(prev, next))
+                        return prev;
+                } else break;
+            }
+            return next;
+        }
+
+        Chunk[] split(int size, int threshold) {
+            while (true) {
+                Chunk chunk = holder.get();
+                if (chunk == null || chunk.size < size) {
+                    return null;
+                }
+                if (chunk.size - size <= 8) {
+                    if (holder.compareAndSet(chunk, null))
+                        return new Chunk[]{chunk};
+                    continue;
+                }
+                Chunk rest = new Chunk(chunk.address+size, chunk.size-size);
+                if (rest.size > threshold) {
+                    if (holder.compareAndSet(chunk, rest))
+                        return new Chunk[]{new Chunk(chunk.address, size)};
+                    continue;
+                }
+                if (holder.compareAndSet(chunk, null)) {
+                    return new Chunk[]{new Chunk(chunk.address, size), rest};
+                }
+            }
+        }
+    }
+    
+    /**
      * Resource Exposure
      * */
     public static class Space extends Unsafe.Accessor {
@@ -57,7 +108,7 @@ public class Allocator {
      * Space Factory
      * */
     public interface SpaceFactory {
-        Space build(long address, int size, Detector detector);
+        Space newInstance(long address, int size, Detector detector);
     }
 
     private final long address, size;
@@ -77,7 +128,7 @@ public class Allocator {
         lastRemain.hold(this.address = address, this.size = size);
         reporter = new Reporter(name, this);
         detector = new Detector(this);
-        this.factory = factory;
+        this.factory = Objects.requireNonNull(factory, "space factory is required");
     }
 
     int active() { return trap.active(); }
@@ -114,9 +165,7 @@ public class Allocator {
 
         Space space = null;
         if (chunk != null) {
-            space = factory == null ?
-                    new Space(chunk.address, (int)chunk.size, detector):
-                    factory.build(chunk.address, (int)chunk.size, detector);
+            space = factory.newInstance(chunk.address, (int)chunk.size, detector);
         }
         return space;
     }
@@ -171,7 +220,7 @@ public class Allocator {
 
         Chunk chunk, need, rest;
 
-        size = Align.UP.align8(size);
+        size = Unsafe.Align.UP.align8(size);
         if (size <= SmallBin.MAX_SIZE) {
             // 1. try to allocate from small bin (using the closet two bin)
             need = smallBin.tryMalloc(size, true);

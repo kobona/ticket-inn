@@ -1,12 +1,15 @@
 server:
   port: 9090
+  undertow:
+    io-threads: 4
+    worker-threads: 8
 
 logging:
   config: classpath:logback.xml
 
 jdbc:
-  url: jdbc:sqlite:/data/ticket_inn.db
-  busyTimeout: 10000
+  url: jdbc:sqlite:/data/sqlite/ticket_inn.db
+  busy-timeout: 10000
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -18,3 +21,8 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
+
+  mvc:
+    static-path-pattern: /resources/**
+  resources:
+    static-locations: classpath:

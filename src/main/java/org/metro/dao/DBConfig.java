@@ -26,7 +26,7 @@ public class DBConfig {
     @Value("${jdbc.url}")
     private String url;
 
-    @Value("${jdbc.busyTimeout}")
+    @Value("${jdbc.busy-timeout}")
     private int busyTimeout;
 
     @Primary

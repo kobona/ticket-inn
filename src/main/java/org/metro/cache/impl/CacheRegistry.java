@@ -25,23 +25,23 @@ public class CacheRegistry {
             });
 
     static {
-//        cacheCleaner.scheduleWithFixedDelay(new Runnable() {
-//            public void run() {
-//                for (SelfEvictCache cache : caches.values()) {
-//                    try {
-//                        cache.evictExpired();
-//                    } catch (Exception ex) {
-//                        ex.printStackTrace();
-//                    }
-//                }
-//            }
-//        }, 1, 1, TimeUnit.SECONDS);
+        cacheCleaner.scheduleWithFixedDelay(new Runnable() {
+            public void run() {
+                for (SelfEvictCache cache : caches.values()) {
+                    try {
+                        cache.evictExpired();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        }, 100, 500, TimeUnit.MILLISECONDS);
     }
 
-    static Memory getMemory(String name, int size) {
+    static Memory getMemory(String name, long space) {
         return memories.computeIfAbsent(name, (k)-> {
             try {
-                return new Memory(name, size, true, SpaceWrapper::new);
+                return new Memory(name, space, true, SpaceWrapper::new);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

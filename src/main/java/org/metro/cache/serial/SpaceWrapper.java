@@ -5,6 +5,8 @@ import org.metro.cache.impl.SelfEvictCache;
 import org.metro.cache.impl.TimeLimitedCache;
 import org.springframework.cache.Cache;
 
+import java.util.Objects;
+
 @SuppressWarnings("unchecked")
 public class SpaceWrapper<T> extends TimeLimitedCache.TTLSpace implements Cache.ValueWrapper {
 
@@ -33,7 +35,8 @@ public class SpaceWrapper<T> extends TimeLimitedCache.TTLSpace implements Cache.
 
     public static <T> SpaceWrapper<T> put(Object value, SelfEvictCache cache) {
         try {
-            return  (SpaceWrapper) Serialization.write(value, cache.mem());
+            return Objects.requireNonNull(Serialization.write(value, cache.mem()),
+                    "No enough space");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

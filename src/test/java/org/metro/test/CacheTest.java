@@ -7,10 +7,7 @@ import org.metro.cache.impl.CacheBuilder;
 import org.metro.cache.impl.SelfEvictCache;
 import org.metro.cache.serial.SpaceWrapper;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 
@@ -21,20 +18,24 @@ public class CacheTest {
 
     @Test
     public void testBuild() {
-        SelfEvictCache<String, SpaceWrapper> cache = new CacheBuilder("test:build").build();
+        SelfEvictCache<String, SpaceWrapper> cache = new CacheBuilder("test:newInstance").build();
         cache.put("PING",  SpaceWrapper.put("PONG", cache));
         System.out.println(cache.get("PING").get());
     }
 
     @Test
-    public void testThreadSafe() {
+    public void testThreadSafe() throws InterruptedException {
 
         final int num = 45;
 
         final CyclicBarrier start = new CyclicBarrier(num);
         final CountDownLatch end = new CountDownLatch(num);
 
-        SelfEvictCache<Integer, SpaceWrapper> cache = new CacheBuilder("test:thread.safe").build();
+        SelfEvictCache<Integer, SpaceWrapper> cache =
+                new CacheBuilder("test:thread.safe")
+                        .virtualSpace("1GB")
+                        .expiryAfterWrite(100)
+                        .applyFIFO().build();
 
         for (int n=0; n<num; n++) {
 
@@ -49,18 +50,29 @@ public class CacheTest {
                     e.printStackTrace();
                 }
 
-                Random random = new Random();
-                for (int i=0; i<100000; i++) {
-                    int k = random.nextInt(500);
-                    if (random.nextInt(5) != 0) {
-                        cache.put(k,  SpaceWrapper.put(uuid+k, cache));
-                    } else {
-                        cache.remove(k);
+                try {
+                    Random random = new Random();
+                    for (int i=0; i<1000000; i++) {
+                        int k = random.nextInt(500);
+                        switch (random.nextInt(3)) {
+//                            case 0: cache.put(k,  SpaceWrapper.put(String.join("", Collections.nCopies(k, uuid))+k, cache)); break;
+                            case 0: cache.put(k,  SpaceWrapper.put(uuid+k, cache)); break;
+                            case 1: cache.get(k); break;
+                            case 2: cache.remove(k); break;
+                        }
+                        if (random.nextInt(10000) == 0) {
+                            try {
+                                Thread.sleep(5);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
-                }
 
-                System.out.println(name + ": mission complete");
-                end.countDown();
+                    System.out.println(name + ": mission complete");
+                } finally {
+                    end.countDown();
+                }
 
             }).start();
         }
@@ -71,10 +83,16 @@ public class CacheTest {
             e.printStackTrace();
         }
 
-        cache.clear();
-
         Reporter.Brief brief = cache.mem().reporter().info(true);
         System.out.println(brief);
+
+        cache.clear();
+
+        Thread.sleep(5000);
+
+        cache.clear();
+
+        brief = cache.mem().reporter().info(true);
         Assert.assertEquals(brief.total, brief.available);
         Assert.assertEquals(brief.active, 0);
         Assert.assertEquals(brief.blocked, 0);

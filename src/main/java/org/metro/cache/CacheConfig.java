@@ -12,8 +12,6 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.io.IOException;
-
 /**
  * <p> Created by pengshuolin on 2019/6/5
  */
@@ -27,6 +25,7 @@ public class CacheConfig {
         try {
             String name = null;
             String strategy = "FIFO";
+            String virtualSpace = null;
             Integer maximumSize = null;
             Integer expiryAfterWrite = null;
             Integer expiryAfterAccess = null;
@@ -36,6 +35,7 @@ public class CacheConfig {
                 switch (StringUtils.defaultString(parser.currentName())) {
                     case "name": name = parser.getValueAsString(); break;
                     case "strategy": strategy = parser.getValueAsString("FIFO"); break;
+                    case "virtualSpace": virtualSpace = parser.getValueAsString(); break;
                     case "maximumSize": maximumSize = parser.getValueAsInt(0); break;
                     case "expiryAfterWrite": expiryAfterWrite = parser.getValueAsInt(0); break;
                     case "expiryAfterAccess": expiryAfterAccess = parser.getValueAsInt(0); break;
@@ -49,6 +49,8 @@ public class CacheConfig {
                 case "LFU": builder.applyLFU(); break;
                 default: throw new IllegalArgumentException(strategy);
             }
+            if (virtualSpace != null)
+                builder.virtualSpace(virtualSpace);
             if (maximumSize != null)
                 builder.maximumSize(maximumSize);
             if (expiryAfterWrite != null)

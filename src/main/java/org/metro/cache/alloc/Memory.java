@@ -1,6 +1,5 @@
 package org.metro.cache.alloc;
 
-import org.metro.cache.alloc.util.Align;
 import org.metro.cache.alloc.util.Unsafe;
 
 import java.io.Closeable;
@@ -40,7 +39,7 @@ public final class Memory extends Unsafe.Accessor implements Closeable {
         if (autoDel) file.deleteOnExit();
 
         this.file = new RandomAccessFile(file, "rw");
-        this.file.setLength(this.length = Align.UP.alignPage(length));
+        this.file.setLength(this.length = Unsafe.Align.UP.alignPage(length));
 
         try {
             this.address = (long) map0.invoke(this.file.getChannel(), 1, 0L, this.length);

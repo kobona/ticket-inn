@@ -1,6 +1,5 @@
 package org.metro.cache;
 
-import org.metro.cache.impl.CacheBuilder;
 import org.metro.cache.impl.SelfEvictCache;
 import org.metro.cache.serial.SpaceWrapper;
 import org.springframework.cache.Cache;
@@ -72,10 +71,7 @@ public class SpringCache implements Cache {
 
     @Override
     public ValueWrapper putIfAbsent(Object o, Object v) {
-        return cache.computeIfAbsent(o, x ->
-                Objects.requireNonNull( SpaceWrapper.put(x, cache),
-                        "Not enough space")
-        );
+        return cache.computeIfAbsent(o, x -> SpaceWrapper.put(x, cache));
     }
 
     @Override
