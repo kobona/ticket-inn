@@ -4,8 +4,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.metro.cache.alloc.Reporter;
 import org.metro.cache.impl.CacheBuilder;
-import org.metro.cache.impl.SelfEvictCache;
-import org.metro.cache.serial.SpaceWrapper;
+import org.metro.cache.impl.CacheTemplate;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -18,9 +17,9 @@ public class CacheTest {
 
     @Test
     public void testBuild() {
-        SelfEvictCache<String, SpaceWrapper> cache = new CacheBuilder("test:newInstance").build();
-        cache.put("PING",  SpaceWrapper.put("PONG", cache));
-        System.out.println(cache.get("PING").get());
+        CacheTemplate<String, String> cache = new CacheBuilder("test:newInstance").build();
+        cache.put("PING",  "PONG", false);
+        System.out.println(cache.getIfPresent("PING").get());
     }
 
     @Test
@@ -31,7 +30,7 @@ public class CacheTest {
         final CyclicBarrier start = new CyclicBarrier(num);
         final CountDownLatch end = new CountDownLatch(num);
 
-        SelfEvictCache<Integer, SpaceWrapper> cache =
+        CacheTemplate<Integer, String> cache =
                 new CacheBuilder("test:thread.safe")
                         .virtualSpace("1GB")
                         .expiryAfterWrite(100)
@@ -55,10 +54,10 @@ public class CacheTest {
                     for (int i=0; i<1000000; i++) {
                         int k = random.nextInt(500);
                         switch (random.nextInt(3)) {
-//                            case 0: cache.put(k,  SpaceWrapper.put(String.join("", Collections.nCopies(k, uuid))+k, cache)); break;
-                            case 0: cache.put(k,  SpaceWrapper.put(uuid+k, cache)); break;
-                            case 1: cache.get(k); break;
-                            case 2: cache.remove(k); break;
+                            case 0: cache.put(k, String.join("", Collections.nCopies(k, uuid))+k, false); break;
+//                            case 0: cache.put(k,  SpaceWrapper.put(uuid+k, cache)); break;
+                            case 1: cache.getIfPresent(k); break;
+                            case 2: cache.remove(k, false); break;
                         }
                         if (random.nextInt(10000) == 0) {
                             try {
@@ -83,16 +82,14 @@ public class CacheTest {
             e.printStackTrace();
         }
 
+        cache.clear();
+        Thread.sleep(5000);
+        cache.clear();
+
+        System.out.println(cache.stats());
+
         Reporter.Brief brief = cache.mem().reporter().info(true);
         System.out.println(brief);
-
-        cache.clear();
-
-        Thread.sleep(5000);
-
-        cache.clear();
-
-        brief = cache.mem().reporter().info(true);
         Assert.assertEquals(brief.total, brief.available);
         Assert.assertEquals(brief.active, 0);
         Assert.assertEquals(brief.blocked, 0);

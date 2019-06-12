@@ -12,31 +12,8 @@ public class CacheRegistry {
     private static final Map<String, Memory>
             memories = new ConcurrentHashMap<>();
 
-    private static final Map<String, SelfEvictCache>
+    private static final Map<String, CacheTemplate>
             caches = new ConcurrentHashMap<>();
-
-    private static final ScheduledExecutorService cacheCleaner =
-            Executors.newScheduledThreadPool(1, new ThreadFactory() {
-                public Thread newThread(Runnable r) {
-                    Thread t = new Thread(r);
-                    t.setName("CacheCleaner");
-                    return t;
-                }
-            });
-
-    static {
-        cacheCleaner.scheduleWithFixedDelay(new Runnable() {
-            public void run() {
-                for (SelfEvictCache cache : caches.values()) {
-                    try {
-                        cache.evictExpired();
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            }
-        }, 100, 500, TimeUnit.MILLISECONDS);
-    }
 
     static Memory getMemory(String name, long space) {
         return memories.computeIfAbsent(name, (k)-> {
@@ -48,15 +25,11 @@ public class CacheRegistry {
         });
     }
 
-    static synchronized SelfEvictCache getCache(String name, Memory memory, CacheBuilder builder) {
+    static synchronized CacheTemplate getCache(String name, Memory memory, CacheBuilder builder) {
         if (caches.containsKey(name)) {
             throw new IllegalArgumentException("Duplicated cache name:" + name);
         }
         return caches.computeIfAbsent(name, (k)->
-                new SelfEvictCache<>(name, memory,
-                        builder.strategy,
-                        builder.maximumSize,
-                        builder.expiryAfterAccess,
-                        builder.expiryAfterWrite));
+                new CacheTemplate<>(builder, memory));
     }
 }

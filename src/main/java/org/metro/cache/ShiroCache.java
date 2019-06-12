@@ -2,36 +2,33 @@ package org.metro.cache;
 
 import org.apache.shiro.cache.Cache;
 import org.apache.shiro.cache.CacheException;
-import org.metro.cache.impl.CacheBuilder;
-import org.metro.cache.impl.SelfEvictCache;
+import org.metro.cache.impl.CacheTemplate;
 import org.metro.cache.serial.SpaceWrapper;
 
 import java.util.*;
 
 public class ShiroCache<K,V> implements Cache<K,V> {
 
-    private SelfEvictCache<K,SpaceWrapper<V>> cache;
+    private CacheTemplate<K,V> cache;
 
-    public ShiroCache(SelfEvictCache<K,SpaceWrapper<V>> cache) {
+    public ShiroCache(CacheTemplate<K,V> cache) {
         this.cache = cache;
     }
 
     @Override
     public V get(K k) throws CacheException {
-        SpaceWrapper<V> wrapper = cache.get(k);
+        SpaceWrapper<V> wrapper = cache.getIfPresent(k);
         return wrapper == null? null: wrapper.get();
     }
 
     @Override
     public V put(K k, V v) throws CacheException {
-        cache.put(k, SpaceWrapper.put(v, cache));
-        return null;
+        return cache.put(k, v, false);
     }
 
     @Override
     public V remove(K k) throws CacheException {
-        cache.remove(k);
-        return null;
+        return cache.remove(k, false);
     }
 
     @Override
@@ -51,26 +48,14 @@ public class ShiroCache<K,V> implements Cache<K,V> {
 
     @Override
     public Collection<V> values() {
-        Collection<SpaceWrapper<V>> values = cache.values();
         return new AbstractCollection<V>() {
             @Override
             public Iterator<V> iterator() {
-                Iterator<SpaceWrapper<V>> iterator = values.iterator();
-                return new Iterator<V>() {
-                    @Override
-                    public boolean hasNext() {
-                        return iterator.hasNext();
-                    }
-                    @Override
-                    public V next() {
-                        SpaceWrapper<V> wrapper = iterator.next();
-                        return wrapper == null ? null: wrapper.get();
-                    }
-                };
+                return cache.values();
             }
             @Override
             public int size() {
-                return values.size();
+                return cache.size();
             }
         };
     }

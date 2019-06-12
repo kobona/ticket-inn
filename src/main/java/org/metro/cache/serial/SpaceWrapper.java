@@ -1,14 +1,14 @@
 package org.metro.cache.serial;
 
+import org.metro.cache.alloc.Allocator;
 import org.metro.cache.alloc.Detector;
-import org.metro.cache.impl.SelfEvictCache;
-import org.metro.cache.impl.TimeLimitedCache;
+import org.metro.cache.alloc.Memory;
 import org.springframework.cache.Cache;
 
 import java.util.Objects;
 
 @SuppressWarnings("unchecked")
-public class SpaceWrapper<T> extends TimeLimitedCache.TTLSpace implements Cache.ValueWrapper {
+public class SpaceWrapper<T> extends Allocator.Space implements Cache.ValueWrapper {
 
     protected Class<T> clazz;
     protected int padding;
@@ -33,14 +33,27 @@ public class SpaceWrapper<T> extends TimeLimitedCache.TTLSpace implements Cache.
         }
     }
 
-    public static <T> SpaceWrapper<T> put(Object value, SelfEvictCache cache) {
+    public static <T> SpaceWrapper<T> put(Object value, Memory memory) {
         try {
-            return Objects.requireNonNull(Serialization.write(value, cache.mem()),
+            return Objects.requireNonNull(Serialization.write(value, memory),
                     "No enough space");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof SpaceWrapper) {
+            SpaceWrapper sw = (SpaceWrapper) obj;
+            return  sw.clazz == clazz &&
+                    sw.address() == address() &&
+                    sw.length() == length();
+        }
+        return false;
+    }
 
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(clazz, address(), length());
+    }
 }

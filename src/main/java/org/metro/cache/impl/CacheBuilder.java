@@ -1,12 +1,14 @@
 package org.metro.cache.impl;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.metro.cache.alloc.Allocator;
+import org.apache.commons.lang3.StringUtils;
 import org.metro.cache.alloc.Memory;
-import org.metro.cache.impl.TimeLimitedCache.EvictStrategy;
+import org.metro.cache.impl.CacheStruct.EvictStrategy;
+import org.metro.cache.impl.CacheStruct.WeighStrategy;
 
 public class CacheBuilder {
 
@@ -14,15 +16,18 @@ public class CacheBuilder {
             Pattern.compile("^([A-Za-z0-9_]+):([-.\\w]+)$");
 
     private static final Pattern spacing =
-            Pattern.compile("^([0-9]+)(kb|mb|gb|KB|MB|GB)$");
+            Pattern.compile("^([0-9]+)(kb|mb|gb|KB|MB|GB)?$");
 
     private final String memoryScope, cacheName;
 
-    int maximumSize;
+    long maximumSize;
     long expiryAfterAccess;
     long expiryAfterWrite;
     long virtualSpace = 1 << 30;
-    EvictStrategy strategy;
+    EvictStrategy evicting;
+    WeighStrategy weighing;
+    int initialCapacity = 16;
+    int concurrencyLevel = 5;
 
     public CacheBuilder(String name) {
         Matcher matcher = naming.matcher(name);
@@ -36,10 +41,11 @@ public class CacheBuilder {
     public CacheBuilder virtualSpace(String virtualSpace) {
         Matcher matcher = spacing.matcher(virtualSpace);
         if (! matcher.find()) {
-            throw new IllegalArgumentException("Illegal virtual spacing");
+            throw new IllegalArgumentException("Illegal spacing");
         }
         long space = Long.valueOf(matcher.group(1));
-        switch (matcher.group(2).toUpperCase()) {
+        String unit = StringUtils.defaultString(matcher.group(2));
+        switch (unit.toUpperCase()) {
             case "GB": space *= 1024;
             case "MB": space *= 1024;
             case "KB": space *= 1024;
@@ -48,10 +54,42 @@ public class CacheBuilder {
         return this;
     }
 
+    public CacheBuilder initialCapacity(int initialCapacity) {
+        if (initialCapacity <= 0)
+            throw new IllegalArgumentException("initialCapacity <= 0");
+        this.initialCapacity = initialCapacity;
+        return this;
+    }
+
+    public CacheBuilder concurrencyLevel(int concurrencyLevel) {
+        if (concurrencyLevel <= 0)
+            throw new IllegalArgumentException("concurrencyLevel <= 0");
+        this.concurrencyLevel = concurrencyLevel;
+        return this;
+    }
+
     public CacheBuilder maximumSize(int maximumSize) {
         if (maximumSize < 0)
             throw new IllegalArgumentException("maximumSize < 0");
         this.maximumSize = maximumSize;
+        this.weighing = WeighStrategy.COUNT;
+        return this;
+    }
+
+    public CacheBuilder maximumSpace(String maximumSpace) {
+        Matcher matcher = spacing.matcher(maximumSpace);
+        if (! matcher.find()) {
+            throw new IllegalArgumentException("Illegal spacing");
+        }
+        long space = Long.valueOf(matcher.group(1));
+        String unit = StringUtils.defaultString(matcher.group(2));
+        switch (unit.toUpperCase()) {
+            case "GB": space *= 1024;
+            case "MB": space *= 1024;
+            case "KB": space *= 1024;
+        }
+        this.maximumSize = space;
+        this.weighing = WeighStrategy.SPACE;
         return this;
     }
 
@@ -70,27 +108,31 @@ public class CacheBuilder {
     }
 
     public CacheBuilder applyLRU() {
-        this.strategy = EvictStrategy.LRU;
+        this.evicting = EvictStrategy.LRU;
         return this;
     }
 
     public CacheBuilder applyLFU() {
-        this.strategy = EvictStrategy.LFU;
+        this.evicting = EvictStrategy.LFU;
         return this;
     }
 
     public CacheBuilder applyFIFO() {
-        this.strategy = EvictStrategy.FIFO;
+        this.evicting = EvictStrategy.FIFO;
         return this;
     }
 
     @SuppressWarnings("unchecked")
-    public <K,V extends Allocator.Space> SelfEvictCache<K,V> build() {
+    public <K,V> CacheTemplate<K,V> build() {
         Memory memory = CacheRegistry.getMemory(memoryScope, virtualSpace);
         return CacheRegistry.getCache(memoryScope + ":" + cacheName, memory, this);
     }
 
-    public <T> T build(Function<SelfEvictCache, T> function) {
+    public <T> T build(Function<CacheTemplate, T> function) {
         return function.apply(build());
+    }
+
+    public <T> T build(BiFunction<CacheTemplate, String, T> function) {
+        return function.apply(build(), memoryScope + ":" + cacheName);
     }
 }
