@@ -101,7 +101,7 @@ public class CacheStruct {
         }
 
         private long ttl() {
-            return ttl.get(this);
+            return TTL;
         }
 
         private boolean updateTTL(long old, long ttl) {
@@ -109,8 +109,8 @@ public class CacheStruct {
         }
 
         boolean isExpired(int now, long writeExpiry, long accessExpiry) {
-            return (writeExpiry > 0 && (now - write.get(this)) > writeExpiry / TICK) ||
-                    (accessExpiry > 0 && (now - access.get(this)) > accessExpiry / TICK);
+            return (writeExpiry > 0 && (now - WRITE) > writeExpiry / TICK) ||
+                    (accessExpiry > 0 && (now - ACCESS) > accessExpiry / TICK);
         }
 
         void updateElapsed(int now, boolean applyWrite, boolean applyAccess) {
@@ -217,7 +217,7 @@ public class CacheStruct {
                 long timestamp = old >>> FREQUENCY_BITS;
                 long frequency = old & (~0L >>> TIMESTAMP_BITS);
 
-                long elapsed = TimeUnit.MILLISECONDS.toMinutes(Math.min(~0L >>> FREQUENCY_BITS, now - ERA));
+                long elapsed = Math.min(~0L >>> FREQUENCY_BITS, now - ERA);
                 while (timestamp < elapsed) {
                     double rand = ThreadLocalRandom.current().nextDouble();
                     if (1./(frequency+1) > rand) { // decay counter

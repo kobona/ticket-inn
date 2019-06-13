@@ -151,12 +151,12 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <excludes>
-                    <exclude>env/**</exclude>
+                    <exclude>profiles/**</exclude>
                     <exclude>mybatisGenerator.xml</exclude>
                 </excludes>
             </resource>
             <resource>
-                <directory>src/main/resources/${profiles.active}</directory>
+                <directory>src/main/resources/profiles/${profiles.active}</directory>
             </resource>
         </resources>
         <plugins>

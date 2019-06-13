@@ -17,13 +17,14 @@ import java.util.function.Function;
 
 
 /**
- * <p> Created by pengshuolin on 2019/6/12
+ * <p> Copy from Guava Cache
  */
 public class CacheTemplate<K,V> extends CacheStruct {
 
     private static final int MAXIMUM_CAPACITY = 1 << 30;
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
     private static final int DRAIN_THRESHOLD = 0x3F;
+    private static final int ONCE_EXPIRY_LIMIT = 16;
 
     private final Memory memory;
 
@@ -99,7 +100,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
         return segments[(hash >>> segmentShift) & segmentMask];
     }
 
-    private static int hash(Object obj) {
+    private static int rehash(Object obj) {
         int h = obj.hashCode();
         h += (h << 15) ^ 0xffffcd7d;
         h ^= (h >>> 10);
@@ -115,34 +116,28 @@ public class CacheTemplate<K,V> extends CacheStruct {
         for (int i = 0; i < segments.length; ++i) {
             size += segments[i].count;
         }
-        if (size > Integer.MAX_VALUE) {
-            return Integer.MAX_VALUE;
-        }
-        if (size < Integer.MIN_VALUE) {
-            return Integer.MIN_VALUE;
-        }
-        return (int) size;
+        return (int) Math.max( Math.min(size, Integer.MAX_VALUE), Integer.MIN_VALUE);
     }
 
     public boolean containsKey(Object key) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).containsKey(key, hash);
     }
 
     public V loadIfAbsent(Object key, Function<K,V> loader) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).getOrLoad(key, hash, loader);
     }
 
     public SpaceWrapper<V> getIfPresent(Object key) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).get(key, hash);
     }
 
     public Map<K, SpaceWrapper<V>> getAllPresent(Iterable<?> keys) {
         Map<K, SpaceWrapper<V>> result = new LinkedHashMap<>();
         for (Object key : keys) {
-            int hash = hash(Objects.requireNonNull(key));
+            int hash = rehash(Objects.requireNonNull(key));
             SpaceWrapper<V> wrapper = segmentFor(hash).get(key, hash);
             if (wrapper != null) {
                 @SuppressWarnings("unchecked")
@@ -154,12 +149,12 @@ public class CacheTemplate<K,V> extends CacheStruct {
     }
 
     public V put(K key, V value, boolean retValue) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).put(key, hash, Objects.requireNonNull(value), false, retValue);
     }
 
     public V putIfAbsent(K key, V value, boolean retValue) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).put(key, hash, Objects.requireNonNull(value), true, retValue);
     }
 
@@ -170,7 +165,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
     }
 
     public V remove(Object key, boolean retValue) {
-        int hash = hash(Objects.requireNonNull(key));
+        int hash = rehash(Objects.requireNonNull(key));
         return segmentFor(hash).remove(key, hash, retValue);
     }
 
@@ -308,47 +303,17 @@ public class CacheTemplate<K,V> extends CacheStruct {
             this.count = newCount;
         }
 
-        V remove(Object key, int hash, boolean retValue) {
+        V put(K key, int hash, V value, boolean onlyIfAbsent, boolean retValue) {
+
             lock();
             try {
                 int now = elapsed();
                 runLockedCleanup(now);
 
-                AtomicReferenceArray<Node<K, V>> table = this.table;
-                int index = hash & (table.length() - 1);
-                Node<K, V> first = table.get(index);
-
-                int newCount;
-                for (Node<K, V> e = first; e != null; e = e.next()) {
-                    K entryKey = e.getKey();
-                    if (e.hashCode() == hash && Objects.equals(entryKey, key)) {
-                        ++modCount;
-                        Node<K, V> newFirst = removeEntryFromChain(
-                                first, e, RemovalCause.EXPLICIT);
-                        newCount = this.count - 1;
-                        table.set(index, newFirst);
-                        this.count = newCount; // write-volatile
-                        return retValue ? e.getValue().get(): null;
-                    }
-                }
-
-                return null;
-            } finally {
-                unlock();
-                runUnlockedCleanup();
-            }
-        }
-
-        V put(K key, int hash, V value, boolean onlyIfAbsent, boolean retValue) {
-
-            lock();
-            try {
-                int now = elapsed(); // map.ticker.read();
-                runLockedCleanup(now);
-
                 int newCount = this.count + 1;
                 if (newCount > this.threshold) { // ensure capacity
                     expand();
+                    newCount = this.count + 1;
                 }
 
                 AtomicReferenceArray<Node<K, V>> table = this.table;
@@ -386,13 +351,6 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 unlock();
                 runUnlockedCleanup();
             }
-        }
-
-        void setValue(Node<K, V> entry, SpaceWrapper<V> value, int now) {
-            entry.setValue(value);
-            int weight = weighing.weightSize(entry);
-            Validate.validState(weight >= 0, "Weights must be non-negative");
-            recordWrite(entry, weight, now);
         }
 
         SpaceWrapper<V> get(Object key, int hash) {
@@ -434,7 +392,6 @@ public class CacheTemplate<K,V> extends CacheStruct {
                     }
                 }
                 // at this point e is either null or expired;
-//                put(key, hash, false, loader.apply(key))
                 return load((K) key, hash, loader);
             } finally {
                 postReadCleanup();
@@ -442,8 +399,6 @@ public class CacheTemplate<K,V> extends CacheStruct {
         }
 
         private V load(K key, int hash, Function<? super K, V> loader) {
-            Node<K, V> e;
-            boolean createNewEntry = true;
             lock();
             try {
                 // re-read ticker once inside the lock
@@ -454,7 +409,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 AtomicReferenceArray<Node<K, V>> table = this.table;
                 int index = hash & (table.length() - 1);
 
-                Node<K, V> first = table.get(index);
+                Node<K, V> first = table.get(index), e;
                 for (e = first; e != null; e = e.next()) {
                     K entryKey = e.getKey();
                     if (e.hashCode() == hash && Objects.equals(entryKey, key)) {
@@ -472,10 +427,12 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 V value = loader.apply(key);
                 if (e == null) {
                     e = newEntry(key, hash, first);
+                    setValue(e, wrapValue(value), now);
                     table.set(index, e);
                     misses.increment();
+                } else {
+                    setValue(e, wrapValue(value), now);
                 }
-                setValue(e, value, now);
                 return value;
             } finally {
                 unlock();
@@ -483,6 +440,36 @@ public class CacheTemplate<K,V> extends CacheStruct {
             }
         }
 
+        V remove(Object key, int hash, boolean retValue) {
+            lock();
+            try {
+                int now = elapsed();
+                runLockedCleanup(now);
+
+                AtomicReferenceArray<Node<K, V>> table = this.table;
+                int index = hash & (table.length() - 1);
+                Node<K, V> first = table.get(index);
+
+                int newCount;
+                for (Node<K, V> e = first; e != null; e = e.next()) {
+                    K entryKey = e.getKey();
+                    if (e.hashCode() == hash && Objects.equals(entryKey, key)) {
+                        ++modCount;
+                        Node<K, V> newFirst = removeEntryFromChain(
+                                first, e, RemovalCause.EXPLICIT);
+                        newCount = this.count - 1;
+                        table.set(index, newFirst);
+                        this.count = newCount; // write-volatile
+                        return retValue ? e.getValue().get(): null;
+                    }
+                }
+
+                return null;
+            } finally {
+                unlock();
+                runUnlockedCleanup();
+            }
+        }
 
         void clear() {
             if (count != 0) { // read-volatile
@@ -507,6 +494,12 @@ public class CacheTemplate<K,V> extends CacheStruct {
             }
         }
 
+        void setValue(Node<K, V> entry, SpaceWrapper<V> value, int now) {
+            entry.setValue(value);
+            int weight = weighing.weightSize(entry);
+            Validate.validState(weight >= 0, "Weights must be non-negative");
+            recordWrite(entry, weight, now);
+        }
 
         void recordRead(Node<K, V> entry, int now) {
             if (recordsAccess()) {
@@ -566,6 +559,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
             int now = elapsed();
             Comparator<Node> comparator = new Comparator<Node>() {
                 public int compare(Node o1, Node o2) {
+                    // TODO: too many volatile read
                     long w1 = evicting.weightTTL(o1, now);
                     long w2 = evicting.weightTTL(o2, now);
                     return -Long.compare(w1, w2);
@@ -574,14 +568,16 @@ public class CacheTemplate<K,V> extends CacheStruct {
 
             PriorityQueue<Node<K,V>> queue = new PriorityQueue<>(comparator);
 
-            int visited = -1;
             AtomicReferenceArray<Node<K, V>> table = this.table;
+            ThreadLocalRandom random = table.length() == 1 ? null: ThreadLocalRandom.current();
+
+            Set<Integer> visited = new HashSet<>(table.length());
             while (totalWeight > maxSegmentWeight) {
                 long overweight = totalWeight - maxSegmentWeight;
 
-                int index = ThreadLocalRandom.current().nextInt(table.length());
-                while (index == visited && table.length() > 1) {
-                    index = ThreadLocalRandom.current().nextInt(table.length());
+                int index = random == null ? 0 : random.nextInt(table.length());
+                while (visited.contains(index) && random != null) {
+                    index = random.nextInt(table.length());
                 }
 
                 Node<K, V> first = table.get(index);
@@ -604,11 +600,13 @@ public class CacheTemplate<K,V> extends CacheStruct {
 
                 while (totalWeight > maxSegmentWeight && ! queue.isEmpty()) {
                     Node<K,V> node = Objects.requireNonNull(queue.poll());
-                    removeEntry(node, node.hashCode(), RemovalCause.SIZE);
+                    if (!removeEntry(node, node.hashCode(), RemovalCause.SIZE)) {
+                        throw new AssertionError();
+                    }
                 }
 
                 queue.clear();
-                visited = index;
+                visited.add(index);
             }
         }
 
@@ -696,8 +694,9 @@ public class CacheTemplate<K,V> extends CacheStruct {
 
         void expireEntries(int now) {
             AtomicReferenceArray<Node<K, V>> table = this.table;
+            ThreadLocalRandom random = table.length() <= 1 ? null: ThreadLocalRandom.current();
             for (int i=0; i<table.length(); i++) {
-                if (ThreadLocalRandom.current().nextBoolean()) {
+                if (random == null || random.nextBoolean()) {
                     expireTable(table, i, now);
                 }
             }
@@ -705,7 +704,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
 
         void expireTable(AtomicReferenceArray<Node<K, V>> table, int index, int now) {
             Node<K, V> first = table.get(index);
-            int newCount;
+            int newCount, expiryNum = 0;
             for (Node<K, V> e = first; e != null; e = e.next()) {
                 if (isExpired(e, now)) {
                     ++modCount;
@@ -713,6 +712,9 @@ public class CacheTemplate<K,V> extends CacheStruct {
                     newCount = this.count - 1;
                     table.set(index, newFirst);
                     this.count = newCount; // write-volatile
+                }
+                if (++expiryNum > ONCE_EXPIRY_LIMIT) {
+                    break;
                 }
             }
         }
