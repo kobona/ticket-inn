@@ -6,6 +6,7 @@ import org.springframework.cache.Cache;
 
 import java.util.concurrent.Callable;
 
+@SuppressWarnings("unchecked")
 public class SpringCache implements Cache {
 
     private String name;
@@ -28,7 +29,7 @@ public class SpringCache implements Cache {
 
     @Override
     public ValueWrapper get(Object o) {
-        return cache.get(o);
+        return cache.getIfPresent(o);
     }
 
     @Override
@@ -43,7 +44,7 @@ public class SpringCache implements Cache {
 
     @Override
     public <T> T get(Object o, Callable<T> callable) {
-        return cache.loadIfAbsent(o, k -> {
+        return (T) cache.loadIfAbsent(o, k -> {
             try {
                 return callable.call();
             } catch (Exception e) {
@@ -59,7 +60,8 @@ public class SpringCache implements Cache {
 
     @Override
     public ValueWrapper putIfAbsent(Object o, Object v) {
-        return cache.putIfAbsent(o, v, false);
+        Object existingValue = cache.putIfAbsent(o, v, true);
+        return existingValue == null ? null: () -> existingValue;
     }
 
     @Override

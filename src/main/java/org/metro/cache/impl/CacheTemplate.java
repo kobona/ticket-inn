@@ -129,9 +129,9 @@ public class CacheTemplate<K,V> extends CacheStruct {
         return segmentFor(hash).containsKey(key, hash);
     }
 
-    public SpaceWrapper<V> loadIfAbsent(Object key, Function<K,V> loader) {
+    public V loadIfAbsent(Object key, Function<K,V> loader) {
         int hash = hash(Objects.requireNonNull(key));
-        return segmentFor(hash).get(key, hash, loader);
+        return segmentFor(hash).getOrLoad(key, hash, loader);
     }
 
     public SpaceWrapper<V> getIfPresent(Object key) {
@@ -417,7 +417,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
             }
         }
 
-        SpaceWrapper<V> get(Object key, int hash, Function<? super K, V> loader) {
+        V getOrLoad(Object key, int hash, Function<? super K, V> loader) {
             Objects.requireNonNull(key);
             Objects.requireNonNull(loader);
             try {
@@ -429,7 +429,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
                         if (! isExpired(e, now)) {
                             recordRead(e, now);
                             hits.increment();
-                            return e.getValue();
+                            return e.getValue().get();
                         }
                     }
                 }
@@ -441,7 +441,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
             }
         }
 
-        SpaceWrapper<V> load(K key, int hash, Function<? super K, V> loader) {
+        private V load(K key, int hash, Function<? super K, V> loader) {
             Node<K, V> e;
             boolean createNewEntry = true;
             lock();
@@ -463,7 +463,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
                             this.count = newCount;
                         } else {
                             hits.increment();
-                            return e.getValue();
+                            return e.getValue().get();
                         }
                         break;
                     }
@@ -476,7 +476,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
                     misses.increment();
                 }
                 setValue(e, value, now);
-                return e.getValue();
+                return value;
             } finally {
                 unlock();
                 runUnlockedCleanup();

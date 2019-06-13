@@ -7,6 +7,7 @@ import org.metro.cache.alloc.util.Stack.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -16,18 +17,18 @@ public class Allocator {
 
     /**
      * Bin with BitMap
-     * */
+     */
     static abstract class Bin {
         volatile int map;
         private final static Unsafe.BitsHolder U = new Unsafe.BitsHolder(Bin.class, "map");
-        void set(int index) {  while (!U.cas1(this, map, index)); }
+        void set(int index) { while (!U.cas1(this, map, index)); }
         void clear(int index) { while (!U.cas0(this, map, index)); }
         int bits() { return U.bits(); }
     }
 
     /**
      * Immutable pair of (address, size)
-     * */
+     */
     static final class Chunk {
         final long address, size;
         Chunk(long address, long size) {
@@ -38,14 +39,14 @@ public class Allocator {
 
     /**
      * Fast Memory Keeper
-     * */
+     */
     static class LastRemain {
 
         final AtomicReference<Chunk> holder = new AtomicReference<>();
 
         long size() {
             Chunk chunk = holder.get();
-            return (chunk == null)? 0: chunk.size;
+            return (chunk == null) ? 0 : chunk.size;
         }
 
         Chunk hold(long address, long size) {
@@ -72,7 +73,7 @@ public class Allocator {
                         return new Chunk[]{chunk};
                     continue;
                 }
-                Chunk rest = new Chunk(chunk.address+size, chunk.size-size);
+                Chunk rest = new Chunk(chunk.address + size, chunk.size - size);
                 if (rest.size > threshold) {
                     if (holder.compareAndSet(chunk, rest))
                         return new Chunk[]{new Chunk(chunk.address, size)};
@@ -84,21 +85,237 @@ public class Allocator {
             }
         }
     }
-    
+
+    /**
+     * Exclusive Global Lock
+     */
+    static class Trap {
+
+        private final static int SPIN_LIMIT = 30;
+        private final static int NULL = -1;
+
+        private volatile long lastTime = System.currentTimeMillis();
+        private volatile int blocked = 0;
+        private volatile boolean enable = false;
+        private final AtomicInteger active = new AtomicInteger(0);
+
+        private final Object lock = new Object();
+        private final Runnable onSafe;
+        private final long minInterval;
+
+        Trap(Runnable exclusiveTask, long taskInterval) {
+            onSafe = exclusiveTask;
+            minInterval = taskInterval;
+        }
+
+        boolean trigger() {
+            long now = System.currentTimeMillis();
+            if (!executable(now)) return false;
+
+            synchronized (lock) {
+                if (!enable) {
+                    enable = true;
+                    // if (active.get() == 0) {
+                    if (active.compareAndSet(0, NULL)) {
+                        execute(now);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private void reset() {
+            synchronized (lock) {
+                if (enable) {
+                    enable = false;
+                    lock.notifyAll();
+                }
+            }
+        }
+
+        void enter() {
+            while (true) {
+                while (enable) {
+                    synchronized (lock) {
+                        blocked++;
+                        while (enable) try {
+                            lock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        blocked--;
+                    }
+                }
+
+                int count = SPIN_LIMIT;
+                while (count-- > 0 && active.updateAndGet(i -> i == NULL ? NULL : i + 1) == NULL) ;
+                if (count > 0) break;
+            }
+        }
+
+        void quit() {
+            int state = active.decrementAndGet();
+            if (state < 0)
+                throw new AssertionError();
+            if (state == 0 && enable) {
+                long now = System.currentTimeMillis();
+                synchronized (lock) {
+                    if (enable && active.compareAndSet(0, NULL)) {
+                        execute(now);
+                    }
+                }
+            }
+        }
+
+        private boolean executable(long now) {
+            return now - lastTime >= minInterval;
+        }
+
+        /**
+         * use synchronization block to ensure absolute safety
+         */
+        private void execute(long now) {
+
+            if (!enable)
+                throw new IllegalStateException("execute: enable = false");
+
+            if (executable(now)) {
+                lastTime = now;
+                try {
+                    onSafe.run();
+                } catch (Throwable t) {
+                    throw t;
+                }
+            }
+
+            if (!active.compareAndSet(NULL, 0))
+                throw new AssertionError();
+
+            reset();
+        }
+
+        int active() {
+            return active.get();
+        }
+
+        int blocked() {
+            return blocked;
+        }
+    }
+
+    /**
+     * Fix-size MinHeap
+     * */
+    static class Heap<T extends Comparable> implements Comparable<Heap<T>> {
+
+        private int size = 0;
+        private final Comparable[] tree;
+
+        Heap(int capacity) {
+            this.tree = new Comparable[capacity];
+        }
+
+        private static int parent(int node) {
+            return ((node + 1) >> 1) - 1;
+        }
+        private static int left(int node) {
+            return (node << 1) + 1;
+        }
+        private static int right(int node) {
+            return (node << 1) + 2;
+        }
+
+        private int compare(int a, int b) {
+            return tree[a].compareTo(tree[b]);
+        }
+        private void swap(int a, int b) {
+            Comparable t = tree[a];
+            tree[a] = tree[b];
+            tree[b] = t;
+        }
+
+        private void shiftUp(int end) {
+            int cursor = end - 1;
+            if (cursor <= 0) return;
+
+            int parent = parent(cursor);
+            while (parent >= 0) {
+                if (compare(cursor, parent) >= 0)
+                    return;
+                swap(cursor, parent);
+                parent = parent(cursor = parent);
+            }
+        }
+
+        private void shiftDown(int end) {
+            if (end == 0) return;
+
+            int cursor = 0;
+            while (cursor < end) {
+
+                int left = left(cursor), right = right(cursor);
+
+                int child = -1;
+                if (left < end && right < end) {
+                    child = (compare(left, right) < 0) ? left: right;
+                } else if (left < end) {
+                    child = left;
+                }
+
+                if (child == -1 || compare(cursor, child) < 0)
+                    return;
+
+                swap(cursor, child);
+                cursor = child;
+            }
+        }
+
+        void push(T t) {
+            tree[size] = t;
+            shiftUp(++size);
+        }
+
+        T pop() {
+            if (size == 0)
+                return null;
+            T t = (T) tree[0];
+            if (--size > 0) {
+                tree[0] = tree[size];
+                shiftDown(size);
+            }
+            return t;
+        }
+
+        T top() {
+            return (T) tree[0];
+        }
+
+        @Override
+        public int compareTo(Heap o) {
+            return top().compareTo(o.top());
+        }
+
+    }
+
     /**
      * Resource Exposure
-     * */
+     */
     public static class Space extends Unsafe.Accessor {
         private final Ref ref; // todo: there is a cycle reference
+
         protected Space(long address, int size, Detector detector) {
             this.ref = detector.attach(this, address, size);
         }
+
         public final long length() {
             return ref.size;
         }
+
         protected final long address() {
             return ref.address;
         }
+
         public final boolean free() {
             return ref.free();
         }
@@ -106,7 +323,7 @@ public class Allocator {
 
     /**
      * Space Factory
-     * */
+     */
     public interface SpaceFactory {
         Space newInstance(long address, int size, Detector detector);
     }
@@ -131,11 +348,17 @@ public class Allocator {
         this.factory = Objects.requireNonNull(factory, "space factory is required");
     }
 
-    int active() { return trap.active(); }
+    int active() {
+        return trap.active();
+    }
 
-    int blocked() { return trap.blocked(); }
+    int blocked() {
+        return trap.blocked();
+    }
 
-    public long size() { return size; }
+    public long size() {
+        return size;
+    }
 
     public Reporter report() {
         return reporter;
@@ -149,11 +372,11 @@ public class Allocator {
 
         Space space = allocate(size);
         if (space == null && trap.trigger()) {
-             space = allocate(size);
+            space = allocate(size);
         }
 
         reporter.alloc(
-                space != null? space.ref.size: size, space != null);
+                space != null ? space.ref.size : size, space != null);
 
         return space;
     }
@@ -165,7 +388,7 @@ public class Allocator {
 
         Space space = null;
         if (chunk != null) {
-            space = factory.newInstance(chunk.address, (int)chunk.size, detector);
+            space = factory.newInstance(chunk.address, (int) chunk.size, detector);
         }
         return space;
     }
@@ -173,10 +396,10 @@ public class Allocator {
     public void free(Space space) {
         if (space == null)
             throw new NullPointerException("space");
-        if (! space.ref.free()) {
+        if (!space.ref.free()) {
             boolean freed = false;
             synchronized (space) {
-                if (! space.ref.free()) {
+                if (!space.ref.free()) {
                     free(space.ref);
                     freed = true;
                 }
@@ -215,7 +438,7 @@ public class Allocator {
     private Chunk search(int size) {
         if (size < 0)
             throw new IllegalArgumentException("size < 0");
-        if (size > (1<<30))
+        if (size > (1 << 30))
             throw new IllegalArgumentException("size > 1GB");
 
         Chunk chunk, need, rest;
@@ -232,7 +455,7 @@ public class Allocator {
                 Chunk[] chunks = lastRemain.split(size, size);
                 if (chunks != null) {
                     need = chunks[0];
-                    rest = (chunks.length > 1)? chunks[1]: null;
+                    rest = (chunks.length > 1) ? chunks[1] : null;
                     recycle(rest);
                     return need;
                 }
@@ -242,7 +465,7 @@ public class Allocator {
             chunk = smallBin.tryMalloc(size, false);
             if (chunk != null) {
                 need = new Chunk(chunk.address, size);
-                rest = lastRemain.hold(chunk.address+size, chunk.size-size);
+                rest = lastRemain.hold(chunk.address + size, chunk.size - size);
                 recycle(rest);
                 return need;
             }
@@ -251,7 +474,7 @@ public class Allocator {
             chunk = treeBin.tryMalloc(size);
             if (chunk != null) {
                 need = new Chunk(chunk.address, size);
-                rest = lastRemain.hold(chunk.address+size, chunk.size-size);
+                rest = lastRemain.hold(chunk.address + size, chunk.size - size);
                 recycle(rest);
                 return need;
             }
@@ -262,7 +485,7 @@ public class Allocator {
             chunk = treeBin.tryMalloc(size);
             if (chunk != null) {
                 need = new Chunk(chunk.address, size);
-                rest = lastRemain.hold(chunk.address+size, chunk.size-size);
+                rest = lastRemain.hold(chunk.address + size, chunk.size - size);
                 recycle(rest);
                 return need;
             }
@@ -272,7 +495,7 @@ public class Allocator {
                 Chunk[] chunks = lastRemain.split(size, size);
                 if (chunks != null) {
                     need = chunks[0];
-                    rest = (chunks.length > 1)? chunks[1]: null;
+                    rest = (chunks.length > 1) ? chunks[1] : null;
                     recycle(rest);
                     return need;
                 }
@@ -293,7 +516,7 @@ public class Allocator {
 
         // iterate all stack in order of address
         Heap<StackIter> heap = new Heap<>(stacks.size());
-        for (Stack stack: stacks) {
+        for (Stack stack : stacks) {
             if (stack.size() > 0) {
                 StackIter iter = stack.iter(true);
                 if (iter.next()) heap.push(iter);
@@ -371,7 +594,7 @@ public class Allocator {
             if (collector.size() == maxCursor) {
                 Chunk hold = lastRemain.hold(ptr, size);
                 if (hold != null && hold.size > 0)
-                   recycle(hold.address, hold.size);
+                    recycle(hold.address, hold.size);
             } else {
                 recycle(ptr, size);
             }
@@ -388,7 +611,7 @@ public class Allocator {
         Object o = s.domain();
         // if the stack of tree is empty, remove it from tree to reduce search cost
         if (s.size() == 0 && o instanceof Tree) {
-            ((Tree) o).exec(t->t.remove(s.mark()));
+            ((Tree) o).exec(t -> t.remove(s.mark()));
         }
     }
 
