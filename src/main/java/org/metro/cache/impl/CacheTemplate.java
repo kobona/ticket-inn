@@ -313,7 +313,6 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 int newCount = this.count + 1;
                 if (newCount > this.threshold) { // ensure capacity
                     expand();
-                    newCount = this.count + 1;
                 }
 
                 AtomicReferenceArray<Node<K, V>> table = this.table;
@@ -330,8 +329,9 @@ public class CacheTemplate<K,V> extends CacheStruct {
                         } else {
                             // clobber existing entry, count remains unchanged
                             ++modCount;
+                            SpaceWrapper<V> wrapper = wrapValue(value);
                             enqueueNotification(e, RemovalCause.REPLACED);
-                            setValue(e, value, now);
+                            setValue(e, wrapper, now);
                             evictEntries(e);
                             return retValue ? e.getValue().get(): null;
                         }
@@ -341,7 +341,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 // Create a new entry.
                 ++modCount;
                 Node<K, V> newEntry = newEntry(key, hash, first);
-                setValue(newEntry, value, now);
+                setValue(newEntry, wrapValue(value), now);
                 table.set(index, newEntry);
                 newCount = this.count + 1;
                 this.count = newCount; // write-volatile
