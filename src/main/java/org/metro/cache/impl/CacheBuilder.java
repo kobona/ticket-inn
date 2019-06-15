@@ -123,16 +123,16 @@ public class CacheBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    public <K,V> CacheTemplate<K,V> build() {
+    public <K,V> CacheEngine<K,V> build() {
         Memory memory = CacheRegistry.getMemory(memoryScope, virtualSpace);
         return CacheRegistry.getCache(memoryScope + ":" + cacheName, memory, this);
     }
 
-    public <T> T build(Function<CacheTemplate, T> function) {
+    public <T> T build(Function<CacheEngine, T> function) {
         return function.apply(build());
     }
 
-    public <T> T build(BiFunction<CacheTemplate, String, T> function) {
+    public <T> T build(BiFunction<CacheEngine, String, T> function) {
         return function.apply(build(), memoryScope + ":" + cacheName);
     }
 }

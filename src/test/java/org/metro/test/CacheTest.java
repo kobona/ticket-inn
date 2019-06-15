@@ -4,7 +4,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.metro.cache.alloc.Reporter;
 import org.metro.cache.impl.CacheBuilder;
-import org.metro.cache.impl.CacheTemplate;
+import org.metro.cache.impl.CacheEngine;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -18,7 +18,7 @@ public class CacheTest {
 
     @Test
     public void testBuild() {
-        CacheTemplate<String, String> cache = new CacheBuilder("test:newInstance").build();
+        CacheEngine<String, String> cache = new CacheBuilder("test:newInstance").build();
         cache.put("PING",  "PONG", false);
         System.out.println(cache.getIfPresent("PING").get());
     }
@@ -26,14 +26,36 @@ public class CacheTest {
     @Test
     public void testBasic() {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        CacheTemplate<Integer, Integer> cache = new CacheBuilder("test:basic").concurrencyLevel(10)
-                .maximumSize(100000)
+        CacheEngine<Integer, Integer> cache = new CacheBuilder("test:basic").concurrencyLevel(10)
                 .build();
 
         for (int i=0; i<100000; i++) {
             cache.put(i, i, false);
         }
-//        Assert.assertEquals(100000, cache.size());
+        Assert.assertEquals(cache.size(), 100000);
+        Assert.assertEquals(cache.keySet().size(), 100000);
+
+        int j = 0;
+        for (Integer k : cache.keySet()) {
+            j++;
+            Assert.assertTrue(k >= 0 && k<100000);
+        }
+        Assert.assertEquals(100000, j);
+
+        j = 0;
+        for (Integer v : cache.values()) {
+            j++;
+            Assert.assertTrue(v >= 0 && v<100000);
+        }
+        Assert.assertEquals(100000, j);
+
+        j = 0;
+        for (Map.Entry<Integer, Integer> e : cache.entries()) {
+            j++;
+            Assert.assertEquals(e.getKey(), e.getValue());
+            Assert.assertTrue(e.getKey() >= 0 && e.getKey() <100000);
+        }
+        Assert.assertEquals(100000, j);
 
         for (int i=0; i<100000; i++) {
             int n = random.nextInt(10000000);
@@ -56,7 +78,7 @@ public class CacheTest {
         final CyclicBarrier start = new CyclicBarrier(num);
         final CountDownLatch end = new CountDownLatch(num);
 
-        CacheTemplate<Integer, String> cache =
+        CacheEngine<Integer, String> cache =
                 new CacheBuilder("test:thread.safe")
                         .virtualSpace("1.5GB")
                         .maximumSpace("1GB")

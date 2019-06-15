@@ -12,7 +12,7 @@ public class CacheRegistry {
     private static final Map<String, Memory>
             memories = new ConcurrentHashMap<>();
 
-    private static final Map<String, CacheTemplate>
+    private static final Map<String, CacheEngine>
             caches = new ConcurrentHashMap<>();
 
     static Memory getMemory(String name, long space) {
@@ -25,11 +25,11 @@ public class CacheRegistry {
         });
     }
 
-    static synchronized CacheTemplate getCache(String name, Memory memory, CacheBuilder builder) {
+    static synchronized CacheEngine getCache(String name, Memory memory, CacheBuilder builder) {
         if (caches.containsKey(name)) {
             throw new IllegalArgumentException("Duplicated cache name:" + name);
         }
         return caches.computeIfAbsent(name, (k)->
-                new CacheTemplate<>(builder, memory));
+                new CacheEngine<>(builder, memory));
     }
 }

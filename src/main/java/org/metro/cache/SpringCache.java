@@ -1,6 +1,6 @@
 package org.metro.cache;
 
-import org.metro.cache.impl.CacheTemplate;
+import org.metro.cache.impl.CacheEngine;
 import org.metro.cache.serial.SpaceWrapper;
 import org.springframework.cache.Cache;
 
@@ -10,9 +10,9 @@ import java.util.concurrent.Callable;
 public class SpringCache implements Cache {
 
     private String name;
-    private CacheTemplate cache;
+    private CacheEngine cache;
 
-    public SpringCache(CacheTemplate cache, String name) {
+    public SpringCache(CacheEngine cache, String name) {
         this.cache = cache;
         this.name = name;
     }

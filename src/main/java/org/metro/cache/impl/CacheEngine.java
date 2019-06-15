@@ -12,7 +12,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -21,7 +20,7 @@ import java.util.function.Function;
 /**
  * <p> Copy from Guava Cache
  */
-public class CacheTemplate<K,V> extends Caching {
+public class CacheEngine<K,V> extends Caching {
 
     private static final int MAXIMUM_CAPACITY = 1 << 30;
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
@@ -40,7 +39,7 @@ public class CacheTemplate<K,V> extends Caching {
     private final int segmentShift;
     private final Segment[] segments;
 
-    CacheTemplate(CacheBuilder builder, Memory memory) {
+    CacheEngine(CacheBuilder builder, Memory memory) {
 
         this.memory = memory;
         this.evicting = builder.evicting;
@@ -728,22 +727,22 @@ public class CacheTemplate<K,V> extends Caching {
     }
 
     private Set<K> keySet;
+    private Iterable<V> values;
+    private Iterable<Map.Entry<K, V>> entries;
 
     public Set<K> keySet() {
         Set<K> ks = keySet;
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    public Iterator<K> keys() {
-        return new KeyIterator();
+    public Iterable<V> values() {
+        Iterable<V> vs = values;
+        return (vs != null) ? vs : (values = new Values());
     }
 
-    public Iterator<V> values() {
-        return new ValueIterator();
-    }
-
-    public Iterator<Map.Entry<K, V>> entries() {
-        return new EntryIterator();
+    public Iterable<Map.Entry<K, V>> entries() {
+        Iterable<Map.Entry<K, V>> es = entries;
+        return (es != null) ? es : (entries = new Entries());
     }
 
     final class KeyIterator extends HashIterator<K> {
@@ -768,16 +767,16 @@ public class CacheTemplate<K,V> extends Caching {
             return new KeyIterator();
         }
         public int size() {
-            return CacheTemplate.this.size();
+            return CacheEngine.this.size();
         }
         public void clear() {
             throw new UnsupportedOperationException();
         }
         public boolean contains(Object o) {
-            return CacheTemplate.this.containsKey(o);
+            return CacheEngine.this.containsKey(o);
         }
         public boolean remove(Object o) {
-            return CacheTemplate.this.remove(o, true) != null;
+            return CacheEngine.this.remove(o, true) != null;
         }
         public Object[] toArray() {
             return toArrayList().toArray();
@@ -789,6 +788,18 @@ public class CacheTemplate<K,V> extends Caching {
             ArrayList<K> result = new ArrayList<>(size());
             iterator().forEachRemaining(result::add);
             return result;
+        }
+    }
+
+    final class Values implements Iterable<V> {
+        public Iterator<V> iterator() {
+            return new ValueIterator();
+        }
+    }
+
+    final class Entries implements Iterable<Map.Entry<K, V>> {
+        public Iterator<Map.Entry<K, V>> iterator() {
+            return new EntryIterator();
         }
     }
 
@@ -854,7 +865,7 @@ public class CacheTemplate<K,V> extends Caching {
             try {
                 K key = entry.getKey();
                 SpaceWrapper<V> wrapper = entry.getValue();
-                if (isExpired(entry, elapsed()) && !wrapper.free()) {
+                if (! isExpired(entry, elapsed())) {
                     nextExternal = new WriteThroughEntry<>(key, wrapper);
                     return true;
                 } else {
@@ -883,7 +894,7 @@ public class CacheTemplate<K,V> extends Caching {
         @Override
         public void remove() {
             Validate.validState(lastReturned != null);
-            CacheTemplate.this.remove(lastReturned.getKey(), false);
+            CacheEngine.this.remove(lastReturned.getKey(), false);
             lastReturned = null;
         }
     }

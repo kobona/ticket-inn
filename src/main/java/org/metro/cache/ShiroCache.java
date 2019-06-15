@@ -2,16 +2,16 @@ package org.metro.cache;
 
 import org.apache.shiro.cache.Cache;
 import org.apache.shiro.cache.CacheException;
-import org.metro.cache.impl.CacheTemplate;
+import org.metro.cache.impl.CacheEngine;
 import org.metro.cache.serial.SpaceWrapper;
 
 import java.util.*;
 
 public class ShiroCache<K,V> implements Cache<K,V> {
 
-    private CacheTemplate<K,V> cache;
+    private CacheEngine<K,V> cache;
 
-    public ShiroCache(CacheTemplate<K,V> cache) {
+    public ShiroCache(CacheEngine<K,V> cache) {
         this.cache = cache;
     }
 
@@ -51,7 +51,7 @@ public class ShiroCache<K,V> implements Cache<K,V> {
         return new AbstractCollection<V>() {
             @Override
             public Iterator<V> iterator() {
-                return cache.values();
+                return cache.values().iterator();
             }
             @Override
             public int size() {
