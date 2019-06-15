@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.metro.cache.alloc.Memory;
-import org.metro.cache.impl.CacheStruct.EvictStrategy;
-import org.metro.cache.impl.CacheStruct.WeighStrategy;
+import org.metro.cache.impl.Caching.EvictStrategy;
+import org.metro.cache.impl.Caching.WeighStrategy;
 
 public class CacheBuilder {
 
@@ -16,7 +16,7 @@ public class CacheBuilder {
             Pattern.compile("^([A-Za-z0-9_]+):([-.\\w]+)$");
 
     private static final Pattern spacing =
-            Pattern.compile("^([0-9]+)(kb|mb|gb|KB|MB|GB)?$");
+            Pattern.compile("^([0-9]+(?:\\.[0-9]+)?)(kb|mb|gb|KB|MB|GB)?$");
 
     private final String memoryScope, cacheName;
 
@@ -24,8 +24,8 @@ public class CacheBuilder {
     long expiryAfterAccess;
     long expiryAfterWrite;
     long virtualSpace = 1 << 30;
-    EvictStrategy evicting;
-    WeighStrategy weighing;
+    EvictStrategy evicting = EvictStrategy.FIFO;
+    WeighStrategy weighing = WeighStrategy.COUNT;
     int initialCapacity = 16;
     int concurrencyLevel = 5;
 
@@ -43,14 +43,14 @@ public class CacheBuilder {
         if (! matcher.find()) {
             throw new IllegalArgumentException("Illegal spacing");
         }
-        long space = Long.valueOf(matcher.group(1));
+        double space = Double.valueOf(matcher.group(1));
         String unit = StringUtils.defaultString(matcher.group(2));
         switch (unit.toUpperCase()) {
             case "GB": space *= 1024;
             case "MB": space *= 1024;
             case "KB": space *= 1024;
         }
-        this.virtualSpace = space;
+        this.virtualSpace = Math.round(space);
         return this;
     }
 
@@ -81,28 +81,28 @@ public class CacheBuilder {
         if (! matcher.find()) {
             throw new IllegalArgumentException("Illegal spacing");
         }
-        long space = Long.valueOf(matcher.group(1));
+        double space = Double.valueOf(matcher.group(1));
         String unit = StringUtils.defaultString(matcher.group(2));
         switch (unit.toUpperCase()) {
             case "GB": space *= 1024;
             case "MB": space *= 1024;
             case "KB": space *= 1024;
         }
-        this.maximumSize = space;
+        this.maximumSize = Math.round(space);
         this.weighing = WeighStrategy.SPACE;
         return this;
     }
 
     public CacheBuilder expiryAfterAccess(int expiryAfterAccess) {
-        if (expiryAfterAccess < 0)
-            throw new IllegalArgumentException("expiryAfterAccess < 0");
+        if (expiryAfterAccess < Caching.TICK)
+            throw new IllegalArgumentException("expiryAfterAccess < " + Caching.TICK);
         this.expiryAfterAccess = expiryAfterAccess;
         return this;
     }
 
     public CacheBuilder expiryAfterWrite(int expiryAfterWrite) {
-        if (expiryAfterWrite < 0)
-            throw new IllegalArgumentException("expiryAfterAccess < 0");
+        if (expiryAfterWrite < Caching.TICK)
+            throw new IllegalArgumentException("expiryAfterAccess < " + Caching.TICK);
         this.expiryAfterWrite = expiryAfterWrite;
         return this;
     }

@@ -9,6 +9,7 @@ import org.metro.cache.impl.CacheTemplate;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * <p> Created by pengshuolin on 2019/6/9
@@ -23,6 +24,31 @@ public class CacheTest {
     }
 
     @Test
+    public void testBasic() {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        CacheTemplate<Integer, Integer> cache = new CacheBuilder("test:basic").concurrencyLevel(10)
+                .maximumSize(100000)
+                .build();
+
+        for (int i=0; i<100000; i++) {
+            cache.put(i, i, false);
+        }
+//        Assert.assertEquals(100000, cache.size());
+
+        for (int i=0; i<100000; i++) {
+            int n = random.nextInt(10000000);
+            cache.put(n, n, false);
+        }
+
+        cache.clear();
+        Assert.assertEquals(0, cache.size());
+        System.out.println(cache.stats());
+        Reporter.Brief brief = cache.mem().reporter().info(true);
+        System.out.println(brief);
+        Assert.assertEquals(brief.total, brief.available);
+    }
+
+    @Test
     public void testThreadSafe() throws InterruptedException {
 
         final int num = 45;
@@ -32,7 +58,9 @@ public class CacheTest {
 
         CacheTemplate<Integer, String> cache =
                 new CacheBuilder("test:thread.safe")
-                        .virtualSpace("1GB")
+                        .virtualSpace("1.5GB")
+                        .maximumSpace("1GB")
+                        .concurrencyLevel(30)
                         .expiryAfterWrite(100)
                         .applyFIFO().build();
 
@@ -51,7 +79,7 @@ public class CacheTest {
 
                 try {
                     Random random = new Random();
-                    for (int i=0; i<1000000; i++) {
+                    for (int i=0; i<100000; i++) {
                         int k = random.nextInt(500);
                         switch (random.nextInt(3)) {
                             case 0: cache.put(k, String.join("", Collections.nCopies(k, uuid))+k, false); break;
@@ -83,9 +111,6 @@ public class CacheTest {
         }
 
         cache.clear();
-        Thread.sleep(5000);
-        cache.clear();
-
         System.out.println(cache.stats());
 
         Reporter.Brief brief = cache.mem().reporter().info(true);

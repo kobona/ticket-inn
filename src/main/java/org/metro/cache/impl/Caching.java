@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.LongAdder;
 /**
  * <p> Created by pengshuolin on 2019/6/12
  */
-public class CacheStruct {
+public class Caching {
 
     protected final static int TICK = 10;
     protected final static long ERA = System.currentTimeMillis();
@@ -104,7 +104,7 @@ public class CacheStruct {
             return TTL;
         }
 
-        private boolean updateTTL(long old, long ttl) {
+        private boolean casTTL(long old, long ttl) {
             return Node.ttl.compareAndSet(this, old, ttl);
         }
 
@@ -121,6 +121,10 @@ public class CacheStruct {
         Node<K, V> next() {
             return next;
         }
+        @Override
+        public final int hashCode() {
+            return hash;
+        }
 
         @Override
         public K getKey() {
@@ -133,10 +137,6 @@ public class CacheStruct {
         @Override
         public SpaceWrapper<V> setValue(SpaceWrapper<V> value) {
             return valueWrapper = value;
-        }
-        @Override
-        public int hashCode() {
-            return key.hashCode();
         }
 
     }
@@ -188,7 +188,7 @@ public class CacheStruct {
     public enum EvictStrategy {
         FIFO {
             void updateTTL(Node node, long now, AtomicLong clock) {
-                node.updateTTL(0, clock.incrementAndGet());
+                node.casTTL(0, clock.incrementAndGet());
             }
             long weightTTL(Node node, long now) {
                 return node.ttl();
@@ -199,7 +199,7 @@ public class CacheStruct {
                 long tick = clock.incrementAndGet();
                 long flag = (old == 0 ? 0: 1L) << 63;
                 long ttl = (tick & (~0L >>> 1)) | flag;
-                while ((old & (~0L >>> 1)) < tick && ! node.updateTTL(old, ttl)) {
+                while ((old & (~0L >>> 1)) < tick && ! node.casTTL(old, ttl)) {
                     old = node.ttl();
                     ttl = (tick & (~0L >>> 1)) | (1L << 63);
                 }
@@ -225,7 +225,7 @@ public class CacheStruct {
                         frequency &= (~0L >>> TIMESTAMP_BITS);
                     }
                     long ttl = elapsed << FREQUENCY_BITS | frequency & (~0L >>> TIMESTAMP_BITS);
-                    if (node.updateTTL(old, ttl)) {
+                    if (node.casTTL(old, ttl)) {
                         break;
                     }
                     old = node.ttl();
@@ -255,11 +255,6 @@ public class CacheStruct {
         REPLACED {
             boolean wasEvicted() {
                 return false;
-            }
-        },
-        COLLECTED {
-            boolean wasEvicted() {
-                return true;
             }
         },
         EXPIRED {

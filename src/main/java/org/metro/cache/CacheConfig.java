@@ -26,6 +26,7 @@ public class CacheConfig {
             String name = null;
             String strategy = "FIFO";
             String virtualSpace = null;
+            String maximumSpace = null;
             Integer maximumSize = null;
             Integer expiryAfterWrite = null;
             Integer expiryAfterAccess = null;
@@ -36,6 +37,7 @@ public class CacheConfig {
                     case "name": name = parser.getValueAsString(); break;
                     case "strategy": strategy = parser.getValueAsString("FIFO"); break;
                     case "virtualSpace": virtualSpace = parser.getValueAsString(); break;
+                    case "maximumSpace": maximumSpace = parser.getValueAsString(); break;
                     case "maximumSize": maximumSize = parser.getValueAsInt(0); break;
                     case "expiryAfterWrite": expiryAfterWrite = parser.getValueAsInt(0); break;
                     case "expiryAfterAccess": expiryAfterAccess = parser.getValueAsInt(0); break;
@@ -51,6 +53,8 @@ public class CacheConfig {
             }
             if (virtualSpace != null)
                 builder.virtualSpace(virtualSpace);
+            if (maximumSpace != null)
+                builder.maximumSpace(maximumSpace);
             if (maximumSize != null)
                 builder.maximumSize(maximumSize);
             if (expiryAfterWrite != null)

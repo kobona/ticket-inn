@@ -7,10 +7,12 @@ import org.metro.cache.alloc.Memory;
 import org.metro.cache.serial.Serialization;
 import org.metro.cache.serial.SpaceWrapper;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -19,7 +21,7 @@ import java.util.function.Function;
 /**
  * <p> Copy from Guava Cache
  */
-public class CacheTemplate<K,V> extends CacheStruct {
+public class CacheTemplate<K,V> extends Caching {
 
     private static final int MAXIMUM_CAPACITY = 1 << 30;
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
@@ -63,7 +65,8 @@ public class CacheTemplate<K,V> extends CacheStruct {
         }
         this.segmentShift = 32 - segmentShift;
         this.segmentMask = segmentCount - 1;
-        this.segments = (Segment[]) new Object[segmentCount];
+        this.segments = (Segment[]) Array.newInstance(Segment.class, segmentCount);
+
 
         int segmentCapacity = initialCapacity / segmentCount;
         if (segmentCapacity * segmentCount < initialCapacity) {
@@ -227,7 +230,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
         }
 
         Node<K, V> copyEntry(Node<K, V> original, Node<K, V> newNext) {
-            return original.getValue().free() ? null: new Node<>(original, newNext);
+            return new Node<>(original, newNext);
         }
 
         Node<K, V> newEntry(K key, int hash, Node<K, V> next) {
@@ -252,7 +255,6 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 return;
             }
 
-            int newCount = count;
             AtomicReferenceArray<Node<K, V>> newTable = new AtomicReferenceArray<>(oldCapacity << 1);
             threshold = newTable.length() * 3 / 4;
             int newMask = newTable.length() - 1;
@@ -289,18 +291,12 @@ public class CacheTemplate<K,V> extends CacheStruct {
                             int newIndex = e.hashCode() & newMask;
                             Node<K, V> newNext = newTable.get(newIndex);
                             Node<K, V> newFirst = copyEntry(e, newNext);
-                            if (newFirst != null) {
-                                newTable.set(newIndex, newFirst);
-                            } else {
-                                enqueueNotification(e, RemovalCause.COLLECTED);
-                                newCount--;
-                            }
+                            newTable.set(newIndex, newFirst);
                         }
                     }
                 }
             }
             table = newTable;
-            this.count = newCount;
         }
 
         V put(K key, int hash, V value, boolean onlyIfAbsent, boolean retValue) {
@@ -312,7 +308,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
 
                 int newCount = this.count + 1;
                 if (newCount > this.threshold) { // ensure capacity
-                    expand();
+                     expand();
                 }
 
                 AtomicReferenceArray<Node<K, V>> table = this.table;
@@ -450,14 +446,13 @@ public class CacheTemplate<K,V> extends CacheStruct {
                 int index = hash & (table.length() - 1);
                 Node<K, V> first = table.get(index);
 
-                int newCount;
                 for (Node<K, V> e = first; e != null; e = e.next()) {
                     K entryKey = e.getKey();
                     if (e.hashCode() == hash && Objects.equals(entryKey, key)) {
                         ++modCount;
                         Node<K, V> newFirst = removeEntryFromChain(
                                 first, e, RemovalCause.EXPLICIT);
-                        newCount = this.count - 1;
+                        int newCount = this.count - 1;
                         table.set(index, newFirst);
                         this.count = newCount; // write-volatile
                         return retValue ? e.getValue().get(): null;
@@ -475,6 +470,8 @@ public class CacheTemplate<K,V> extends CacheStruct {
             if (count != 0) { // read-volatile
                 lock();
                 try {
+                    runLockedCleanup(elapsed());
+
                     AtomicReferenceArray<Node<K, V>> table = this.table;
                     for (int i = 0; i < table.length(); ++i) {
                         for (Node<K, V> e = table.get(i); e != null; e = e.next()) {
@@ -559,7 +556,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
             int now = elapsed();
             Comparator<Node> comparator = new Comparator<Node>() {
                 public int compare(Node o1, Node o2) {
-                    // TODO: too many volatile read
+                    // TODO: maybe too many volatile read
                     long w1 = evicting.weightTTL(o1, now);
                     long w2 = evicting.weightTTL(o2, now);
                     return -Long.compare(w1, w2);
@@ -639,13 +636,7 @@ public class CacheTemplate<K,V> extends CacheStruct {
             int newCount = count;
             Node<K, V> newFirst = entry.next();
             for (Node<K, V> e = first; e != entry; e = e.next()) {
-                Node<K, V> next = copyEntry(e, newFirst);
-                if (next != null) {
-                    newFirst = next;
-                } else {
-                    enqueueNotification(entry, RemovalCause.COLLECTED);
-                    newCount--;
-                }
+                newFirst = copyEntry(e, newFirst);
             }
             this.count = newCount;
             return newFirst;
@@ -712,17 +703,17 @@ public class CacheTemplate<K,V> extends CacheStruct {
                     newCount = this.count - 1;
                     table.set(index, newFirst);
                     this.count = newCount; // write-volatile
-                }
-                if (++expiryNum > ONCE_EXPIRY_LIMIT) {
-                    break;
+                    if (++expiryNum > ONCE_EXPIRY_LIMIT) {
+                        break;
+                    }
                 }
             }
         }
 
         void enqueueNotification(Node<K, V> entry, RemovalCause cause) {
             totalWeight -= weighing.weightSize(entry);
+            removalNotificationQueue.offer(Triple.of(entry.getKey(), entry.getValue(), cause));
             if (cause.wasEvicted()) {
-                removalNotificationQueue.offer(Triple.of(entry.getKey(), entry.getValue(), cause));
                 eviction.increment();
             }
         }
