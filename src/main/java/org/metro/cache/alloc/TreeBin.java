@@ -120,6 +120,7 @@ public class TreeBin extends Allocator.Bin {
         return stats;
     }
 
+    /** The Document Of TreeBin */
     public static void main(String[] args) {
 
 //        int[] x = {256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096};

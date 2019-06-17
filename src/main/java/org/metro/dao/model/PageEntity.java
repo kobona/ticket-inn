@@ -27,10 +27,10 @@ public class PageEntity {
     }
 
     public static PageEntity empty() {
-        return new PageEntity(0, null, null, Collections.emptyList());
+        return new PageEntity(0, defaultPageSize, 0, Collections.emptyList());
     }
 
-    public PageEntity(Integer total, Integer pageSize, Integer pageNo, List<?> list) {
+    private PageEntity(Integer total, Integer pageSize, Integer pageNo, List<?> list) {
         this.total = total;
         this.pageSize = pageSize;
         this.pageNo = pageNo;
