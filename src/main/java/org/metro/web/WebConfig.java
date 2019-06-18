@@ -13,6 +13,7 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.validation.beanvalidation.MethodValidationPostProcessor;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -26,6 +27,7 @@ import java.util.List;
  * <p> Created by pengshuolin on 2019/6/4
  */
 @Configuration
+@EnableWebMvc
 public class WebConfig implements WebMvcConfigurer {
 
     private static final String[] YAML_CONFIG_FILES = {};
@@ -56,6 +58,12 @@ public class WebConfig implements WebMvcConfigurer {
         jsonConverter.setPrettyPrint(false);
         jsonConverter.setSupportedMediaTypes(Collections.singletonList(MediaType.APPLICATION_JSON_UTF8));
         converters.add(jsonConverter);
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/home/**")
+                .addResourceLocations("classpath:/home/");
     }
 
     @Bean

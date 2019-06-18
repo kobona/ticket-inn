@@ -3,8 +3,5 @@
 target/
 
 .DS_Store
-src/main/site/node_modules
-src/main/site/dist
-src/main/site/.env.local
-src/main/site/.env.*.local
-src/main/site/npm-debug.log*
+src/main/webapp/node_modules
+/logs

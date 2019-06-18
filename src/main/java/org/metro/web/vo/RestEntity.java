@@ -16,6 +16,7 @@ public class RestEntity {
         BadRequest(400, "参数有误"),
         Unauthorized(401, "未登录"),
         Forbidden(403, "无权访问"),
+        NotFound(404, "资源不存在"),
         UnsupportedMediaType(415, "不支持参数类型"),
         UnknownError(500, "系统异常");
         private int code;
