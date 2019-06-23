@@ -5,7 +5,9 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Validate;
 import org.metro.cache.alloc.Memory;
 import org.metro.cache.impl.Caching.EvictStrategy;
 import org.metro.cache.impl.Caching.WeighStrategy;
@@ -123,16 +125,17 @@ public class CacheBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    public <K,V> CacheEngine<K,V> build() {
-        Memory memory = CacheRegistry.getMemory(memoryScope, virtualSpace);
+    public <K,V> CacheEngine<K,V> build(String... prefix) {
+        Validate.validState(prefix == null || prefix.length <= 1);
+        Memory memory = CacheRegistry.getMemory(ArrayUtils.isEmpty(prefix) ? null: prefix[0], memoryScope, virtualSpace);
         return CacheRegistry.getCache(memoryScope + ":" + cacheName, memory, this);
     }
 
-    public <T> T build(Function<CacheEngine, T> function) {
-        return function.apply(build());
+    public <T> T build(String prefix, Function<CacheEngine, T> function) {
+        return function.apply(build(prefix));
     }
 
-    public <T> T build(BiFunction<CacheEngine, String, T> function) {
-        return function.apply(build(), memoryScope + ":" + cacheName);
+    public <T> T build(String prefix, BiFunction<CacheEngine, String, T> function) {
+        return function.apply(build(prefix), memoryScope + ":" + cacheName);
     }
 }

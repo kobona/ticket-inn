@@ -9,6 +9,9 @@ server:
 logging:
   config: classpath:logback.xml
 
+cache:
+  prefix-dir: /data/cache
+
 jdbc:
   url: jdbc:sqlite:/data/sqlite/ticket_inn.db
   busy-timeout: 10000

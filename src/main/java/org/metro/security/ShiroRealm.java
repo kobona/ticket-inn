@@ -9,7 +9,6 @@ import org.apache.shiro.crypto.hash.Sha256Hash;
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.util.ByteSource;
-import org.metro.dao.mapper.AccountMapper;
 import org.metro.dao.model.Account;
 import org.springframework.beans.factory.annotation.Autowired;
 

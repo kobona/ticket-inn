@@ -1,12 +1,9 @@
 package org.metro.security;
 
-import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.realm.Realm;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
-import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
-import org.metro.cache.ShiroCacheManager;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,11 +20,6 @@ public class ShiroConfig {
     @Bean
     public Realm shiroRealm() {
         return new ShiroRealm();
-    }
-
-    @Bean
-    public ShiroCacheManager shiroCacheManager() {
-        return new ShiroCacheManager();
     }
 
     @Bean

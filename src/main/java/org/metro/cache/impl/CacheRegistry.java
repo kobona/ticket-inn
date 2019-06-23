@@ -3,6 +3,7 @@ package org.metro.cache.impl;
 import org.metro.cache.alloc.Memory;
 import org.metro.cache.serial.SpaceWrapper;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -15,10 +16,11 @@ public class CacheRegistry {
     private static final Map<String, CacheEngine>
             caches = new ConcurrentHashMap<>();
 
-    static Memory getMemory(String name, long space) {
+    static Memory getMemory(String prefix, String name, long space) {
         return memories.computeIfAbsent(name, (k)-> {
             try {
-                return new Memory(name, space, true, SpaceWrapper::new);
+                String separator = (prefix == null || prefix.isEmpty() || prefix.endsWith(File.separator) || name.startsWith(File.separator))? "": File.separator;
+                return new Memory(prefix + separator + name, space, true, SpaceWrapper::new);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

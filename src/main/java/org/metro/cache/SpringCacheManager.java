@@ -15,6 +15,11 @@ public class SpringCacheManager implements CacheManager,
         InitializingBean, DisposableBean {
 
     private ConcurrentMap<String, SpringCache> cacheMap;
+    private final String cachePrefix;
+
+    public SpringCacheManager(String cachePrefix) {
+        this.cachePrefix = cachePrefix;
+    }
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -24,7 +29,7 @@ public class SpringCacheManager implements CacheManager,
     @Override
     public Cache getCache(String config) {
         return cacheMap.computeIfAbsent(config, (k)->
-                CacheConfig.parseJsonConfig(config).build(SpringCache::new));
+                CacheConfig.parseJsonConfig(config).build(cachePrefix, SpringCache::new));
     }
 
     @Override

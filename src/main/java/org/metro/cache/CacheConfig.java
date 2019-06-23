@@ -7,10 +7,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.metro.cache.impl.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * <p> Created by pengshuolin on 2019/6/5
@@ -69,9 +76,22 @@ public class CacheConfig {
         }
     }
 
+    @Value("${cache.prefix-dir:}")
+    private String prefixDir;
+
+    @PostConstruct
+    public void prepareCacheDir() throws IOException {
+        Files.createDirectories(Paths.get(prefixDir));
+    }
+
     @Bean
     public CacheManager cacheManager() {
-        return new SpringCacheManager();
+        return new SpringCacheManager(prefixDir);
+    }
+
+    @Bean
+    public ShiroCacheManager shiroCacheManager() {
+        return new ShiroCacheManager(prefixDir);
     }
 
 }
