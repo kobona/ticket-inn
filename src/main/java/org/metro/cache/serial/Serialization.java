@@ -2,6 +2,7 @@ package org.metro.cache.serial;
 
 
 import io.protostuff.ProtobufIOUtil;
+import org.apache.commons.lang3.Validate;
 import org.metro.cache.alloc.Allocator.Space;
 import org.metro.cache.alloc.Memory;
 import io.protostuff.LinkedBuffer;
@@ -9,7 +10,7 @@ import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,18 +25,64 @@ public class Serialization {
     private static final ConcurrentMap<Class, Schema>
         SCHEMA = new ConcurrentHashMap<>();
 
+    private static final Schema
+        VOID = RuntimeSchema.createFrom(Void.class);
+
     private final static <T> Schema<T> parseClazz(Class<T> clazz) {
         Schema schema = SCHEMA.get(clazz);
         if (schema == null) {
             schema = RuntimeSchema.createFrom(clazz);
+            if (((RuntimeSchema) schema).getFields().isEmpty()) {
+                if (! Serializable.class.isAssignableFrom(clazz)) {
+                    throw new UnsupportedOperationException();
+                }
+                schema = VOID;
+            }
             SCHEMA.putIfAbsent(clazz, schema);
         }
         return schema;
     }
 
-    public static <T> SpaceWrapper write(T message, Memory memory)  {
+    private static <T> SpaceWrapper writeObject(T message, Memory memory, Class<T> clazz) {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream(64);
+        try {
+            ObjectOutputStream stream = new ObjectOutputStream(buffer);
+            stream.writeObject(message);
+        } catch (Exception e) {
+            throw new SerialFailure(e);
+        }
+        SpaceWrapper space = (SpaceWrapper) memory.acquire(buffer.size());
+        if (space == null) {
+            throw new NoEnoughSpace();
+        }
+        try {
+            SpaceOutput output = OUTPUT.get();
+            output.wrap(space);
+            buffer.writeTo(output);
+            space.clazz = clazz;
+            space.padding = (int) space.length() - buffer.size();
+            return space;
+        } catch (Exception e) {
+            throw new SerialFailure(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T readObject(SpaceWrapper<T> space, Class<T> clazz) {
+        try {
+            ObjectInputStream stream = new ObjectInputStream(INPUT.get().wrap(space).buffer());
+            return (T) stream.readObject();
+        } catch (Exception e) {
+            throw new SerialFailure(e);
+        }
+    }
+
+    public static <T> SpaceWrapper write(T message, Memory memory) {
         Class<T> clazz = (Class<T>) message.getClass();
         Schema<T> schema = parseClazz(clazz);
+        if (schema == VOID) {
+            return writeObject(message, memory, clazz);
+        }
         SpaceOutput output = OUTPUT.get();
         LinkedBuffer buffer = output.buffer();
         int length = ProtobufIOUtil.writeTo(buffer, message, schema);
@@ -57,6 +104,9 @@ public class Serialization {
 
     public static <T> T read(SpaceWrapper<T> space, Class<T> clazz) {
         Schema<T> schema = parseClazz(clazz);
+        if (schema == VOID) {
+            return readObject(space, clazz);
+        }
         T message = schema.newMessage();
         try {
             synchronized (space) {

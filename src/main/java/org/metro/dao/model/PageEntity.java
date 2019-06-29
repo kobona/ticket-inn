@@ -20,7 +20,7 @@ public class PageEntity {
     private Integer total;
     private List<?> data;
 
-    public static PageEntity of(PageFilter page, Integer total, List<?> data) {
+    public static PageEntity of(PageParam page, Integer total, List<?> data) {
         Integer pageNo = ObjectUtils.defaultIfNull(page.getPageNo(), 0);
         Integer pageSize = ObjectUtils.defaultIfNull(page.getPageSize(), defaultPageSize);
         return new PageEntity(total, pageSize, pageNo, data);

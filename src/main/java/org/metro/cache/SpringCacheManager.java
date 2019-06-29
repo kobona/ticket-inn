@@ -44,7 +44,7 @@ public class SpringCacheManager implements CacheManager,
         while (iter.hasNext()) {
             SpringCache cache = iter.next().getValue();
             iter.remove();
-            cache.clear();;
+            cache.clear();
         }
     }
 }

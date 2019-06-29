@@ -4,11 +4,13 @@ import org.apache.shiro.authc.*;
 import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
 import org.apache.shiro.authz.AuthorizationException;
 import org.apache.shiro.authz.AuthorizationInfo;
-import org.apache.shiro.authz.SimpleAuthorizationInfo;
+import org.apache.shiro.codec.Base64;
 import org.apache.shiro.crypto.hash.Sha256Hash;
+import org.apache.shiro.crypto.hash.SimpleHash;
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.util.ByteSource;
+import org.metro.dao.mapper.AccountMapper;
 import org.metro.dao.model.Account;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -20,17 +22,23 @@ public class ShiroRealm extends AuthorizingRealm {
     @Autowired
     private AccountMapper accountMapper;
 
-    private ShiroAccount findAccount(String uid) {
-        Account account = accountMapper.selectByPrimaryKey(uid);
-        return account == null ? null: new ShiroAccount(account);
-    }
-
     {
         HashedCredentialsMatcher hashMatcher = new HashedCredentialsMatcher();
         hashMatcher.setHashAlgorithmName(Sha256Hash.ALGORITHM_NAME);
         hashMatcher.setStoredCredentialsHexEncoded(false);
-        hashMatcher.setHashIterations(1024);
+        hashMatcher.setHashIterations(256);
         this.setCredentialsMatcher(hashMatcher);
+    }
+
+    public String addSalt(String password, String salt) {
+        HashedCredentialsMatcher matcher = (HashedCredentialsMatcher) getCredentialsMatcher();
+        SimpleHash hash = new SimpleHash(matcher.getHashAlgorithmName(), password, salt, matcher.getHashIterations());
+        return hash.toBase64();
+    }
+
+    @Override
+    public boolean supports(AuthenticationToken token) {
+        return token instanceof UsernamePasswordToken;
     }
 
     @Override
@@ -38,11 +46,7 @@ public class ShiroRealm extends AuthorizingRealm {
         if (principals == null) {
             throw new AuthorizationException("PrincipalCollection method argument cannot be null.");
         }
-        ShiroAccount account = (ShiroAccount) getAvailablePrincipal(principals);
-        SimpleAuthorizationInfo info = new SimpleAuthorizationInfo();
-        info.setRoles(account.getRoles());
-        info.setStringPermissions(account.getPermissions());
-        return info;
+        return (ShiroAccount) getAvailablePrincipal(principals);
     }
 
     @Override
@@ -54,16 +58,14 @@ public class ShiroRealm extends AuthorizingRealm {
             throw new AccountException("Null username are not allowed by this realm.");
         }
 
-        ShiroAccount account = findAccount(username);
+        Account account = accountMapper.selectByPrimaryKey(username);
         if (account == null) {
             throw new UnknownAccountException("No account found for admin [" + username + "]");
         }
 
-        SimpleAuthenticationInfo info = new SimpleAuthenticationInfo(account, account.getPassword(), getName());
-        if (account.getSalt() != null) {
-            info.setCredentialsSalt(ByteSource.Util.bytes(account.getSalt()));
-        }
-
+        SimpleAuthenticationInfo info = new SimpleAuthenticationInfo(new ShiroAccount(account), account.getPassword(), getName());
+        info.setCredentials(ByteSource.Util.bytes(Base64.decode(account.getPassword())));
+        info.setCredentialsSalt(ByteSource.Util.bytes(account.getSalt()));
         return info;
     }
 }

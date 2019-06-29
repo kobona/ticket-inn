@@ -1,10 +1,12 @@
 package org.metro.cache.impl;
 
+import java.lang.management.ManagementFactory;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.sun.management.OperatingSystemMXBean;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
@@ -20,12 +22,15 @@ public class CacheBuilder {
     private static final Pattern spacing =
             Pattern.compile("^([0-9]+(?:\\.[0-9]+)?)(kb|mb|gb|KB|MB|GB)?$");
 
+    private static final long systemMemory = ((OperatingSystemMXBean)
+            ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize();
+
     private final String memoryScope, cacheName;
 
     long maximumSize;
     long expiryAfterAccess;
     long expiryAfterWrite;
-    long virtualSpace = 1 << 30;
+    long virtualSpace = 1L << 31;
     EvictStrategy evicting = EvictStrategy.FIFO;
     WeighStrategy weighing = WeighStrategy.COUNT;
     int initialCapacity = 16;
@@ -52,7 +57,7 @@ public class CacheBuilder {
             case "MB": space *= 1024;
             case "KB": space *= 1024;
         }
-        this.virtualSpace = Math.round(space);
+        this.virtualSpace = Math.min(Math.round(space), systemMemory);
         return this;
     }
 

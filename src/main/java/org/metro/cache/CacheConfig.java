@@ -3,10 +3,10 @@ package org.metro.cache;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.sun.management.OperatingSystemMXBean;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.metro.cache.impl.CacheBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -16,17 +16,15 @@ import org.springframework.context.annotation.Configuration;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
  * <p> Created by pengshuolin on 2019/6/5
  */
+@Slf4j
 @Configuration
 @EnableCaching
 public class CacheConfig {
-
-    private final static Logger log = LoggerFactory.getLogger(ShiroCacheManager.class);
 
     static CacheBuilder parseJsonConfig(String json) {
         try {

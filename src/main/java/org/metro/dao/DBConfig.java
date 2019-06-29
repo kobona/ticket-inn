@@ -47,10 +47,7 @@ public class DBConfig {
         return dataSource;
     }
 
-    public JdbcTemplate jdbcTemplate(@Autowired DataSource dataSource) {
-        return new JdbcTemplate(dataSource);
-    }
-
+    @Primary
     @Bean
     public PlatformTransactionManager annotationDrivenTransactionManager(@Autowired DataSource dataSource) {
         return new DataSourceTransactionManager(dataSource);

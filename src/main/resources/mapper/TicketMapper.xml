@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.metro.dao.mapper.TicketMapper">
+  <resultMap id="BaseResultMap" type="org.metro.dao.model.Ticket">
+    <id column="ticket_id" jdbcType="INTEGER" property="ticketId" />
+    <result column="show_id" jdbcType="INTEGER" property="showId" />
+    <result column="ticket_name" jdbcType="VARCHAR" property="ticketName" />
+    <result column="ticket_state" jdbcType="INTEGER" property="ticketState" />
+    <result column="create_date" jdbcType="INTEGER" property="createDate" />
+    <result column="update_date" jdbcType="INTEGER" property="updateDate" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    ticket_id, show_id, ticket_name, ticket_state, create_date, update_date
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from ticket
+    where ticket_id = #{ticketId,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from ticket
+    where ticket_id = #{ticketId,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="org.metro.dao.model.Ticket">
+    insert into ticket (ticket_id, show_id, ticket_name, 
+      ticket_state, create_date, update_date
+      )
+    values (#{ticketId,jdbcType=INTEGER}, #{showId,jdbcType=INTEGER}, #{ticketName,jdbcType=VARCHAR}, 
+      #{ticketState,jdbcType=INTEGER}, #{createDate,jdbcType=INTEGER}, #{updateDate,jdbcType=INTEGER}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="org.metro.dao.model.Ticket">
+    insert into ticket
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="ticketId != null">
+        ticket_id,
+      </if>
+      <if test="showId != null">
+        show_id,
+      </if>
+      <if test="ticketName != null">
+        ticket_name,
+      </if>
+      <if test="ticketState != null">
+        ticket_state,
+      </if>
+      <if test="createDate != null">
+        create_date,
+      </if>
+      <if test="updateDate != null">
+        update_date,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="ticketId != null">
+        #{ticketId,jdbcType=INTEGER},
+      </if>
+      <if test="showId != null">
+        #{showId,jdbcType=INTEGER},
+      </if>
+      <if test="ticketName != null">
+        #{ticketName,jdbcType=VARCHAR},
+      </if>
+      <if test="ticketState != null">
+        #{ticketState,jdbcType=INTEGER},
+      </if>
+      <if test="createDate != null">
+        #{createDate,jdbcType=INTEGER},
+      </if>
+      <if test="updateDate != null">
+        #{updateDate,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="org.metro.dao.model.Ticket">
+    update ticket
+    <set>
+      <if test="showId != null">
+        show_id = #{showId,jdbcType=INTEGER},
+      </if>
+      <if test="ticketName != null">
+        ticket_name = #{ticketName,jdbcType=VARCHAR},
+      </if>
+      <if test="ticketState != null">
+        ticket_state = #{ticketState,jdbcType=INTEGER},
+      </if>
+      <if test="createDate != null">
+        create_date = #{createDate,jdbcType=INTEGER},
+      </if>
+      <if test="updateDate != null">
+        update_date = #{updateDate,jdbcType=INTEGER},
+      </if>
+    </set>
+    where ticket_id = #{ticketId,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="org.metro.dao.model.Ticket">
+    update ticket
+    set show_id = #{showId,jdbcType=INTEGER},
+      ticket_name = #{ticketName,jdbcType=VARCHAR},
+      ticket_state = #{ticketState,jdbcType=INTEGER},
+      create_date = #{createDate,jdbcType=INTEGER},
+      update_date = #{updateDate,jdbcType=INTEGER}
+    where ticket_id = #{ticketId,jdbcType=INTEGER}
+  </update>
+</mapper>

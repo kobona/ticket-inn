@@ -1,13 +1,20 @@
 server:
   port: 9090
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
   servlet:
     context-path: /ticket-inn
-  undertow:
-    io-threads: 4
-    worker-threads: 8
+#  undertow:
+#    io-threads: 4
+#    worker-threads: 8
 
 logging:
   config: classpath:logback.xml
+
+oss:
+  storage-path: /data/oss
 
 cache:
   prefix-dir: /data/cache
@@ -23,5 +30,6 @@ mybatis:
 spring:
   http:
     multipart:
+      enabled: true
       max-file-size: 100MB
       max-request-size: 100MB

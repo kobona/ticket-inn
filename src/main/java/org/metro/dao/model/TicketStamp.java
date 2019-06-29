@@ -5,18 +5,12 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-public class Account {
+public class TicketStamp {
     private String uid;
 
-    private String username;
+    private Integer ticketId;
 
-    private String password;
-
-    private String salt;
-
-    private String roles;
-
-    private String permissions;
+    private String ticketName;
 
     private Date createDate;
 

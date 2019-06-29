@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.metro.dao.mapper.TicketStampMapper">
+  <resultMap id="BaseResultMap" type="org.metro.dao.model.TicketStamp">
+    <result column="uid" jdbcType="VARCHAR" property="uid" />
+    <result column="ticket_id" jdbcType="INTEGER" property="ticketId" />
+    <result column="ticket_name" jdbcType="VARCHAR" property="ticketName" />
+    <result column="create_date" jdbcType="INTEGER" property="createDate" />
+    <result column="update_date" jdbcType="INTEGER" property="updateDate" />
+  </resultMap>
+  <insert id="insert" parameterType="org.metro.dao.model.TicketStamp">
+    insert into ticket_stamp (uid, ticket_id, ticket_name, 
+      create_date, update_date)
+    values (#{uid,jdbcType=VARCHAR}, #{ticketId,jdbcType=INTEGER}, #{ticketName,jdbcType=VARCHAR}, 
+      #{createDate,jdbcType=INTEGER}, #{updateDate,jdbcType=INTEGER})
+  </insert>
+  <insert id="insertSelective" parameterType="org.metro.dao.model.TicketStamp">
+    insert into ticket_stamp
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="uid != null">
+        uid,
+      </if>
+      <if test="ticketId != null">
+        ticket_id,
+      </if>
+      <if test="ticketName != null">
+        ticket_name,
+      </if>
+      <if test="createDate != null">
+        create_date,
+      </if>
+      <if test="updateDate != null">
+        update_date,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="uid != null">
+        #{uid,jdbcType=VARCHAR},
+      </if>
+      <if test="ticketId != null">
+        #{ticketId,jdbcType=INTEGER},
+      </if>
+      <if test="ticketName != null">
+        #{ticketName,jdbcType=VARCHAR},
+      </if>
+      <if test="createDate != null">
+        #{createDate,jdbcType=INTEGER},
+      </if>
+      <if test="updateDate != null">
+        #{updateDate,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+</mapper>

@@ -10,6 +10,14 @@ public class RestException extends RuntimeException {
     private int error;
     private HttpStatus httpStatus;
 
+    public RestException(RestErrors error) {
+        this(null, error.code, error.msg);
+    }
+
+    public RestException(HttpStatus httpStatus, RestErrors error) {
+        this(httpStatus, error.code, error.msg);
+    }
+
     public RestException(int error, String message) {
         this(null, error, message);
     }

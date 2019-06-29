@@ -1,6 +1,7 @@
 package org.metro.web;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +18,11 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +36,9 @@ import java.util.List;
 public class WebConfig implements WebMvcConfigurer {
 
     private static final String[] YAML_CONFIG_FILES = {};
+
+    @Value("oss.storage-path")
+    private String storagePath;
 
     @Bean
     public static PropertySourcesPlaceholderConfigurer yamlPropertiesConfigurer() {
@@ -64,6 +72,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/home/**")
                 .addResourceLocations("classpath:/home/");
+        registry.addResourceHandler("/object/**")
+                .addResourceLocations(storagePath);
     }
 
     @Bean

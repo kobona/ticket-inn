@@ -1,31 +1,47 @@
 package org.metro.cache.serial;
 
-import org.metro.cache.alloc.Allocator;
 import io.protostuff.CodedInput;
 import io.protostuff.Input;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 public class SpaceInput extends InputStream {
 
+    private final BufferedInputStream buffer;
     private final CodedInput input;
     private SpaceWrapper space;
     private int position;
 
     public SpaceInput() {
+        buffer = new BufferedInputStream(this, 2048) {
+            public void reset() {
+                markpos = -1;
+                pos = count = 0;
+            }
+            public void close() {
+                throw new UnsupportedOperationException();
+            }
+        };
         input = new CodedInput(this, false);
     }
 
     public SpaceInput wrap(SpaceWrapper space) {
-        input.resetSizeCounter();
         this.space = space;
         this.position = 0;
         return this;
     }
 
     public Input input() {
+        input.resetSizeCounter();
         return input;
+    }
+
+    public BufferedInputStream buffer() {
+        try { buffer.reset(); }
+        catch (IOException e) { throw new RuntimeException(e); }
+        return buffer;
     }
 
     @Override
