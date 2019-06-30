@@ -1,20 +1,4 @@
-# ticket-inn
-
-## Project create
-1. 安装 [vue-cli](https://cli.vuejs.org/zh/guide/)
-```
-npm install -g @vue/cli
-```
-
-2. 创建工程 
-```
-vue create ticket-inn
-```
-
-3. 安装 [muse-ui](https://muse-ui.org/#/zh-CN)
-```
-npm i muse-ui -S
-```
+# ticket-inn-admin
 
 ## Project setup
 ```

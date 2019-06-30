@@ -152,6 +152,7 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <excludes>
+                    <exclude>db/**</exclude>
                     <exclude>profiles/**</exclude>
                     <exclude>mybatisGenerator.xml</exclude>
                 </excludes>
@@ -216,7 +217,7 @@
                                 <argument>run</argument>
                                 <argument>build</argument>
                             </arguments>
-                            <workingDirectory>${basedir}/src/main/webapp</workingDirectory>
+                            <workingDirectory>${basedir}/home</workingDirectory>
                         </configuration>
                     </execution>
                 </executions>
