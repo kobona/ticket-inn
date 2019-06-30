@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.metro.dao.mapper.TicketMapper">
-  <resultMap id="BaseResultMap" type="org.metro.dao.model.Ticket">
+<mapper namespace="org.metropolis.dao.mapper.TicketMapper">
+  <resultMap id="BaseResultMap" type="org.metropolis.dao.model.Ticket">
     <id column="ticket_id" jdbcType="INTEGER" property="ticketId" />
     <result column="show_id" jdbcType="INTEGER" property="showId" />
     <result column="ticket_name" jdbcType="VARCHAR" property="ticketName" />
@@ -22,7 +22,7 @@
     delete from ticket
     where ticket_id = #{ticketId,jdbcType=INTEGER}
   </delete>
-  <insert id="insert" parameterType="org.metro.dao.model.Ticket">
+  <insert id="insert" parameterType="org.metropolis.dao.model.Ticket">
     insert into ticket (ticket_id, show_id, ticket_name, 
       ticket_state, create_date, update_date
       )
@@ -30,7 +30,7 @@
       #{ticketState,jdbcType=INTEGER}, #{createDate,jdbcType=INTEGER}, #{updateDate,jdbcType=INTEGER}
       )
   </insert>
-  <insert id="insertSelective" parameterType="org.metro.dao.model.Ticket">
+  <insert id="insertSelective" parameterType="org.metropolis.dao.model.Ticket">
     insert into ticket
     <trim prefix="(" suffix=")" suffixOverrides=",">
       <if test="ticketId != null">
@@ -73,7 +73,7 @@
       </if>
     </trim>
   </insert>
-  <update id="updateByPrimaryKeySelective" parameterType="org.metro.dao.model.Ticket">
+  <update id="updateByPrimaryKeySelective" parameterType="org.metropolis.dao.model.Ticket">
     update ticket
     <set>
       <if test="showId != null">
@@ -94,7 +94,7 @@
     </set>
     where ticket_id = #{ticketId,jdbcType=INTEGER}
   </update>
-  <update id="updateByPrimaryKey" parameterType="org.metro.dao.model.Ticket">
+  <update id="updateByPrimaryKey" parameterType="org.metropolis.dao.model.Ticket">
     update ticket
     set show_id = #{showId,jdbcType=INTEGER},
       ticket_name = #{ticketName,jdbcType=VARCHAR},

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.metro.dao.mapper.ShowMapper">
-  <resultMap id="BaseResultMap" type="org.metro.dao.model.Show">
+<mapper namespace="org.metropolis.dao.mapper.ShowMapper">
+  <resultMap id="BaseResultMap" type="org.metropolis.dao.model.Show">
     <id column="show_id" jdbcType="INTEGER" property="showId" />
     <result column="show_name" jdbcType="VARCHAR" property="showName" />
     <result column="start_time" jdbcType="INTEGER" property="startTime" />
@@ -21,13 +21,13 @@
     delete from show
     where show_id = #{showId,jdbcType=INTEGER}
   </delete>
-  <insert id="insert" parameterType="org.metro.dao.model.Show">
+  <insert id="insert" parameterType="org.metropolis.dao.model.Show">
     insert into show (show_id, show_name, start_time, 
       create_date, update_date)
     values (#{showId,jdbcType=INTEGER}, #{showName,jdbcType=VARCHAR}, #{startTime,jdbcType=INTEGER}, 
       #{createDate,jdbcType=INTEGER}, #{updateDate,jdbcType=INTEGER})
   </insert>
-  <insert id="insertSelective" parameterType="org.metro.dao.model.Show">
+  <insert id="insertSelective" parameterType="org.metropolis.dao.model.Show">
     insert into show
     <trim prefix="(" suffix=")" suffixOverrides=",">
       <if test="showId != null">
@@ -64,7 +64,7 @@
       </if>
     </trim>
   </insert>
-  <update id="updateByPrimaryKeySelective" parameterType="org.metro.dao.model.Show">
+  <update id="updateByPrimaryKeySelective" parameterType="org.metropolis.dao.model.Show">
     update show
     <set>
       <if test="showName != null">
@@ -82,7 +82,7 @@
     </set>
     where show_id = #{showId,jdbcType=INTEGER}
   </update>
-  <update id="updateByPrimaryKey" parameterType="org.metro.dao.model.Show">
+  <update id="updateByPrimaryKey" parameterType="org.metropolis.dao.model.Show">
     update show
     set show_name = #{showName,jdbcType=VARCHAR},
       start_time = #{startTime,jdbcType=INTEGER},

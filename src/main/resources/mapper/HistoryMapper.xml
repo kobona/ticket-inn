@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.metro.dao.mapper.HistoryMapper">
-  <resultMap id="BaseResultMap" type="org.metro.dao.model.History">
+<mapper namespace="org.metropolis.dao.mapper.HistoryMapper">
+  <resultMap id="BaseResultMap" type="org.metropolis.dao.model.History">
     <result column="uid" jdbcType="VARCHAR" property="uid" />
     <result column="ref_id" jdbcType="INTEGER" property="refId" />
     <result column="op_log" jdbcType="VARCHAR" property="opLog" />
     <result column="create_date" jdbcType="INTEGER" property="createDate" />
   </resultMap>
-  <insert id="insert" parameterType="org.metro.dao.model.History">
+  <insert id="insert" parameterType="org.metropolis.dao.model.History">
     insert into history (uid, ref_id, op_log, 
       create_date)
     values (#{uid,jdbcType=VARCHAR}, #{refId,jdbcType=INTEGER}, #{opLog,jdbcType=VARCHAR}, 
       #{createDate,jdbcType=INTEGER})
   </insert>
-  <insert id="insertSelective" parameterType="org.metro.dao.model.History">
+  <insert id="insertSelective" parameterType="org.metropolis.dao.model.History">
     insert into history
     <trim prefix="(" suffix=")" suffixOverrides=",">
       <if test="uid != null">

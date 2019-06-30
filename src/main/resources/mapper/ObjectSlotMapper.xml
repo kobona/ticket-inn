@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.metro.dao.mapper.ObjectSlotMapper">
-  <resultMap id="BaseResultMap" type="org.metro.dao.model.ObjectSlot">
+<mapper namespace="org.metropolis.dao.mapper.ObjectSlotMapper">
+  <resultMap id="BaseResultMap" type="org.metropolis.dao.model.ObjectSlot">
     <id column="obj_id" jdbcType="INTEGER" property="objId" />
     <result column="obj_name" jdbcType="VARCHAR" property="objName" />
     <result column="obj_mime" jdbcType="VARCHAR" property="objMime" />
@@ -38,7 +38,7 @@
     delete from object_slot
     where obj_id = #{objId,jdbcType=INTEGER}
   </delete>
-  <insert id="insertSelective" useGeneratedKeys="true" keyProperty="objId" parameterType="org.metro.dao.model.ObjectSlot">
+  <insert id="insertSelective" useGeneratedKeys="true" keyProperty="objId" parameterType="org.metropolis.dao.model.ObjectSlot">
     insert into object_slot
     <trim prefix="(" suffix=")" suffixOverrides=",">
       <if test="objId != null">
@@ -75,7 +75,7 @@
       </if>
     </trim>
   </insert>
-  <update id="updateByPrimaryKeySelective" parameterType="org.metro.dao.model.ObjectSlot">
+  <update id="updateByPrimaryKeySelective" parameterType="org.metropolis.dao.model.ObjectSlot">
     update object_slot
     <set>
       <if test="objName != null">
@@ -93,7 +93,7 @@
     </set>
     where obj_id = #{objId,jdbcType=INTEGER}
   </update>
-  <update id="updateByPrimaryKey" parameterType="org.metro.dao.model.ObjectSlot">
+  <update id="updateByPrimaryKey" parameterType="org.metropolis.dao.model.ObjectSlot">
     update object_slot
     set obj_name = #{objName,jdbcType=VARCHAR},
       obj_mime = #{objMime,jdbcType=VARCHAR},

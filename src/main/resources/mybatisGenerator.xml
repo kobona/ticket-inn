@@ -15,7 +15,7 @@
     </jdbcConnection>
 
     <!--生成的model 包路径 -->
-    <javaModelGenerator targetPackage="org.metro.dao.model" targetProject="meta">
+    <javaModelGenerator targetPackage="org.metropolis.dao.model" targetProject="meta">
       <property name="enableSubPackages" value="true"/>
     </javaModelGenerator>
 
@@ -25,7 +25,7 @@
     </sqlMapGenerator>
 
     <!-- 生成的Dao接口 的包路径 -->
-    <javaClientGenerator type="XMLMAPPER" targetPackage="org.metro.dao.mapper" targetProject="meta">
+    <javaClientGenerator type="XMLMAPPER" targetPackage="org.metropolis.dao.mapper" targetProject="meta">
       <property name="enableSubPackages" value="true"/>
     </javaClientGenerator>
 
