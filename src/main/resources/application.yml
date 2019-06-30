@@ -14,7 +14,7 @@ logging:
   config: classpath:logback.xml
 
 oss:
-  storage-path: /data/oss
+  storage-path: /data/object
 
 cache:
   prefix-dir: /data/cache

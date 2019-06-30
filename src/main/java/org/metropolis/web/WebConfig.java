@@ -32,7 +32,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     private static final String[] YAML_CONFIG_FILES = {};
 
-    @Value("oss.storage-path")
+    @Value("${oss.storage-path}")
     private String storagePath;
 
     @Bean

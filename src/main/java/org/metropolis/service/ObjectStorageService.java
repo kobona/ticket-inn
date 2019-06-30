@@ -57,7 +57,7 @@ public class ObjectStorageService {
         return os;
     }
 
-    @Value("oss.storage-path")
+    @Value("${oss.storage-path}")
     private String storagePath;
 
     @Autowired
